@@ -4,7 +4,7 @@
 * Move Sub out of record syntax? it got smaller...
 
 ## moveRooms 
-* add rule that the player cannot leave a room on fire (they can open a hatch, though.)
+
 
 ## openHatches
 * Create parallel to moveRooms, openHatches.  
@@ -27,6 +27,7 @@
 
 # Done:
 ## moveRooms 
-* Modify moveRooms to find the most recent Move action & treat that as the current room (ignore recent Hatch Open actions). create currentRoom function?
+* Modify moveRooms to find the most recent Move action & treat that as the current room (ignore recent Hatch Open actions). currentRoom function
 * Add error handling for initial states that have no moves, or no current rooms
 * Write a wrapper for Sub + Room num and create initial move from it: function startGame.  Test: startGame mini 1 (success), startGame mini 5 (fails)
+* add rule that the player cannot leave a room on fire (they can open a hatch, though.)

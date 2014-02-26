@@ -36,10 +36,8 @@ isMove _              = False
 roomNum :: Room -> Int
 roomNum (Room num _ ) = num
 
-{- Not currently needed
 roomState :: Room -> RoomState
 roomState (Room _ state) = state
--}
 
 -- Given a room, return a list of adjacent rooms. Only uses Open hatches
 adjacentRooms :: Room -> Sub -> [Room]
@@ -85,9 +83,10 @@ currentRoom actions = case visitedRooms actions of
 --  * The new room's state must not be HighFlood or Fire
 moveRooms :: GameState -> [GameState]
 moveRooms (GameState sub actions)  =  [ (GameState sub ((Move newRoom  (costToEnter newRoom)):actions))
-                                    | newRoom <- (adjacentRooms currRoom sub),
-                                     newRoom `notElem` visited,
-                                     canEnterRoom newRoom]
+                                       | newRoom <- (adjRooms),
+                                         newRoom `notElem` visited,
+                                         canEnterRoom newRoom,
+                                         roomState currRoom /= Fire] -- The player may not leave a room on fire
        where currRoom    = currentRoom actions
              visited     = visitedRooms actions
              adjRooms    = adjacentRooms currRoom sub
@@ -107,7 +106,7 @@ plusDepth gameState =  (concat . (map moveRooms)) gameState
 
 --Get all moves, regardless of depth.  This terminates when a row in the grid has no results (no additional moves from the previous row)
 allMoves :: [GameState] -> [GameState]
-allMoves gameState = concat $ takeWhile (not . null) (iterate plusDepth miniList)
+allMoves gameState = concat $ takeWhile (not . null) (iterate plusDepth gameState)
 
 --moves only:  map (\(GameState sub moves) -> moves) (allMoves miniList)
 
@@ -115,10 +114,10 @@ allMoves gameState = concat $ takeWhile (not . null) (iterate plusDepth miniList
 --concat $ map moveRooms $ moveRooms (GameState mini [(Move (Room 1) 0)])
 
 startGame :: Sub -> Int -> [GameState]
-startGame sub roomNum = [GameState sub [(Move room 0)]]
-          where room = if roomNum `elem` (map (\(Room n _) -> n) (rooms sub))
-                       then head (filter (\(Room n s) -> n == roomNum) (rooms sub))
-                       else error "Start room is not found in the description of the sub"
+startGame sub roomNum = if roomNum `elem` (map (\(Room n _) -> n) (rooms sub)) 
+                        then [GameState sub [(Move room 0)]]
+                        else error "Start room is not found in the description of the sub"
+               where room = head (filter (\(Room n s) -> n == roomNum) (rooms sub))
 
 -- test: allMoves (startGame mini 1)
 

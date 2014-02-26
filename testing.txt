@@ -41,17 +41,19 @@ mini = Sub { rooms =
                  Hatch (2,4) Open,
                  Hatch (3,4) Closed]
                 }
-miniList = [(GameState mini [(Move (Room 1 Clear) 0)])]
 
-*Main> plusDepth miniList
+
+
+*Main> plusDepth (startGame mini 1)
 [GameState (Sub {rooms = [Room 1 Clear,Room 2 LowFlood,Room 3 Fire,Room 4 Clear], hatches = [Hatch (1,2) Open,Hatch (1,3) Open,Hatch (2,3) Open,Hatch (2,4) Open,Hatch (3,4) Closed]}) [Move (Room 2 LowFlood) 2,Move (Room 1 Clear) 0]]
 
 
-*Main> allMoves miniList
-[GameState (Sub {rooms = [Room 1 Clear,Room 2 LowFlood,Room 3 Fire,Room 4 Clear], hatches = [Hatch (1,2) Open,Hatch (1,3) Open,Hatch (2,3) Open,Hatch (2,4) Open,Hatch (3,4) Closed]}) [Move (Room 1 Clear) 0],
-GameState (Sub {rooms = [Room 1 Clear,Room 2 LowFlood,Room 3 Fire,Room 4 Clear], hatches = [Hatch (1,2) Open,Hatch (1,3) Open,Hatch (2,3) Open,Hatch (2,4) Open,Hatch (3,4) Closed]}) [Move (Room 2 LowFlood) 2,Move (Room 1 Clear) 0],
-GameState (Sub {rooms = [Room 1 Clear,Room 2 LowFlood,Room 3 Fire,Room 4 Clear], hatches = [Hatch (1,2) Open,Hatch (1,3) Open,Hatch (2,3) Open,Hatch (2,4) Open,Hatch (3,4) Closed]}) [Move (Room 4 Clear) 1,Move (Room 2 LowFlood) 2,Move (Room 1 Clear) 0]]
-
+*Main> allMoves (startGame mini 5)
+*** Exception: Start room is not found in the description of the sub
+*Main> allMoves (startGame mini 1)
+[GameState (Sub {rooms = [Room 1 Clear,Room 2 LowFlood,Room 3 Fire,Room 4 Clear], hatches = [Hatch (1,2) Open,Hatch (1,3) Open,Hatch (2,3) Open,Hatch (2,4) Open,Hatch (3,4) Closed]}) [Move (Room 1 Clear) 0],GameState (Sub {rooms = [Room 1 Clear,Room 2 LowFlood,Room 3 Fire,Room 4 Clear], hatches = [Hatch (1,2) Open,Hatch (1,3) Open,Hatch (2,3) Open,Hatch (2,4) Open,Hatch (3,4) Closed]}) [Move (Room 2 LowFlood) 2,Move (Room 1 Clear) 0],GameState (Sub {rooms = [Room 1 Clear,Room 2 LowFlood,Room 3 Fire,Room 4 Clear], hatches = [Hatch (1,2) Open,Hatch (1,3) Open,Hatch (2,3) Open,Hatch (2,4) Open,Hatch (3,4) Closed]}) [Move (Room 4 Clear) 1,Move (Room 2 LowFlood) 2,Move (Room 1 Clear) 0]]
+*Main> allMoves (startGame mini 3)
+[GameState (Sub {rooms = [Room 1 Clear,Room 2 LowFlood,Room 3 Fire,Room 4 Clear], hatches = [Hatch (1,2) Open,Hatch (1,3) Open,Hatch (2,3) Open,Hatch (2,4) Open,Hatch (3,4) Closed]}) [Move (Room 3 Fire) 0]]
 
 --actions only:  map (\(GameState sub moves) -> moves) (allMoves miniList)
 
