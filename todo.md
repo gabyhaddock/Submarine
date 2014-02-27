@@ -4,7 +4,6 @@
 * Move Sub out of record syntax? it got smaller...
 * Validate original sub, make sure that each hatch describes a room in the room list
 
-## moveRooms 
 
 
 ## openHatches
@@ -13,16 +12,12 @@
 
 
 
-## prune result set
-* Two GameStates are equivalent if they have equivalent Subs (equivalent subs = same room states, ignore hatches), and equal final rooms.  For equivalent sets of game states, choose the move list that has the lowest cost.
-* For now, just prune at the end.  Premature pruning may result in an infinite list (make a useless move, prune back, make the same useless move). If we need early pruning, we may want to limit the number of iterations to something sane.
-
-* Idea: on a list of GameStates, first GroupBy the final room & sub state, then SortBy cost within each list, then take the head of each list.  Figure out how to get GroupBy to pull equivalent gamestates if they aren't adjacent -- or figure out how to get them adjacent (maybe an initial sort?)
 
 
 ## Data output
 * I like the idea of outputting JSON to represent each GameState and building a small js/canvas app to render the options.
 
+Use a json type class and give instances to all of the data types?
 
 # Done:
 ## moveRooms 
@@ -38,3 +33,10 @@
 
 ## takeTurn
 * Create takeTurn function that will take a game state, perform moveRooms and openHatches and concatenate the results.  (renamed plusDepth)
+
+
+## prune result set
+* Two GameStates are equivalent if they have equivalent Subs (equivalent subs = same room states, ignore hatches), and equal final rooms.  For equivalent sets of game states, choose the move list that has the lowest cost.
+* For now, just prune at the end.  Premature pruning may result in an infinite list (make a useless move, prune back, make the same useless move). If we need early pruning, we may want to limit the number of iterations to something sane.
+
+* Idea: on a list of GameStates, first GroupBy the final room & sub state, then SortBy cost within each list, then take the head of each list.  Figure out how to get GroupBy to pull equivalent gamestates if they aren't adjacent -- or figure out how to get them adjacent (maybe an initial sort?)

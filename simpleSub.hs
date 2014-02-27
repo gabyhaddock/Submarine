@@ -10,8 +10,18 @@ import Data.List
 
 data Sub = Sub {rooms::[Room], hatches::[Hatch]} deriving Show -- This structure got smaller, move out of record syntax?
 
-data Room = Room Int RoomState deriving (Eq, Show)
-data RoomState = Clear | HighFlood | LowFlood | Fire  deriving (Show, Eq)
+data Room = Room Int RoomState deriving Show
+
+instance Ord Room where
+    compare (Room x1 s1) (Room x2 s2) | x1 < x2   = LT
+                                     | x1 > x2   = GT
+                                     | otherwise = compare s1 s2
+
+instance Eq Room where
+    r1 == r2 = (compare r1 r2) == EQ
+
+
+data RoomState = Clear | LowFlood | HighFlood | Fire  deriving (Show, Eq, Ord)
 
 data Hatch =  Hatch (Int, Int) HatchState deriving (Eq, Show)
 data HatchState = Open | Closed | Blocked  deriving (Show, Eq)
@@ -171,6 +181,7 @@ openHatches (GameState sub actions) = [ (GameState
 -- SECTION-03: Coordinating high-level functions for turns and game state
 -- ===================================================================
 
+
 -- Take one turn
 takeTurn :: [GameState] -> [GameState]
 takeTurn gameState =  (concat . (map moveRooms)) gameState 
@@ -197,10 +208,63 @@ startGame sub roomNum = if roomNum `elem` (map (\(Room n _) -> n) (rooms sub))
 -- SECTION-04: Game state analysis 
 -- =============================
 
--- Find the total cost of a GameState (used for final output of results
-totalCost :: GameState -> Int
-totalCost (GameState sub moves) = sum (map (\(Move room cost) -> cost) moves)
 
+-- Helper functions
+gameStateActions                    :: GameState -> [Action]
+gameStateActions (GameState sub acts) = acts
+
+gameStateSub                     :: GameState -> Sub
+gameStateSub (GameState sub acts) = sub
+
+gameStateCurrentRoom :: GameState -> Room
+gameStateCurrentRoom gs = currentRoom (gameStateActions gs)
+
+-- Find the total cost of a GameState (used for final output of results
+
+actionCost                    :: Action -> Int
+actionCost (Move _ cost)      = cost
+actionCost (OpenHatch _ cost) = cost
+
+totalCost                      :: GameState -> Int
+totalCost (GameState sub actions) = sum (map actionCost actions)
+
+-- Ordering and equality functions to order & group by various aspects of the GameState
+orderByCost         :: GameState -> GameState -> Ordering 
+orderByCost gs1 gs2 = compare (totalCost gs1) (totalCost gs2)
+
+{-
+--DELETE from here....
+equalByCost         :: GameState -> GameState -> Bool
+equalByCost gs1 gs2 = (totalCost gs1) == (totalCost gs2)
+
+
+orderByCurrentRoom :: GameState -> GameState -> Ordering
+orderByCurrentRoom gs1 gs2 = compare  (roomNum (gameStateCurrentRoom gs1)) (roomNum (gameStateCurrentRoom gs2))
+
+equalByCurrentRoom :: GameState -> GameState -> Bool
+equalByCurrentRoom gs1 gs2 = (roomNum (gameStateCurrentRoom gs1)) == (roomNum (gameStateCurrentRoom gs2))
+
+equalBySubRooms :: GameState -> GameState -> Bool
+equalBySubRooms gs1 gs2 = (rooms (gameStateSub gs1)) == (rooms (gameStateSub gs2))
+--- to here?
+-}
+
+orderByGameState :: GameState -> GameState -> Ordering
+orderByGameState gs1 gs2 | currRoom1 < currRoom2  = LT -- Use Ord for rooms
+                         | currRoom1 > currRoom2  = GT
+                         | otherwise              = compare (rooms (gameStateSub gs1)) (rooms (gameStateSub gs2))
+    where currRoom1 = gameStateCurrentRoom gs1
+          currRoom2 = gameStateCurrentRoom gs2
+
+
+equalByGameState :: GameState -> GameState -> Bool
+equalByGameState gs1 gs2 = (orderByGameState gs1 gs2) == EQ 
+
+
+-- Given a list of possible game states, group into "equal" game states (same final room, same room state) and choose the lowest cost game state from each equivalent group
+-- Note that haskell groupBy only groups adjacent elements, so I need to sortBy orderByGameState first
+prune :: [GameState] -> [GameState]
+prune gs = map (head . sortBy orderByCost) (groupBy equalByGameState ( sortBy orderByGameState gs))
 
 -- =============================
 -- SECTION-05: Sample data
@@ -208,14 +272,14 @@ totalCost (GameState sub moves) = sum (map (\(Move room cost) -> cost) moves)
 
 mini = Sub { rooms =
                [ Room 1 Clear,
-                 Room 2 LowFlood,
-                 Room 3 Fire,
+                 Room 2 Clear,
+                 Room 3 Clear,
                  Room 4 Clear]
             , hatches =
-               [ Hatch (1,2) Open,
-                 Hatch (1,3) Open,
-                 Hatch (2,3) Open,
-                 Hatch (2,4) Open,
+               [ Hatch (1,2) Closed,
+                 Hatch (1,3) Closed,
+                 Hatch (2,3) Closed,
+                 Hatch (2,4) Closed,
                  Hatch (3,4) Closed]
                 }
 
