@@ -1,9 +1,9 @@
 
-SECTION-01: Moving rooms
-SECTION-02: Opening hatches
-SECTION-03: Coordinating high-level functions for turns and game state
-SECTION-04: Game state analysis 
-SECTION-05: Sample data
+* SECTION-01: Moving rooms  
+* SECTION-02: Opening hatches  
+* SECTION-03: Coordinating high-level functions for turns and game state  
+* SECTION-04: Game state analysis  
+* SECTION-05: Sample data  
 
 
 > import Data.List
@@ -32,19 +32,19 @@ TODO: This structure got smaller, move out of record syntax?
 
 > data GameState = GameState Sub [Action] deriving Show
 
----
- ## SECTION-01: Moving rooms
+
+SECTION-01: Moving rooms
 ---
 
 > --Helper functions for the Move object
->
+
 > isMove :: Action -> Bool
 > isMove (Move room _ ) = True
 > isMove _              = False
->
+
 > roomNum :: Room -> Int
 > roomNum (Room num _ ) = num
->
+
 > roomState :: Room -> RoomState
 > roomState (Room _ state) = state
 
@@ -102,8 +102,8 @@ Obeys the following rules:
 >              visited     = visitedRooms actions
 >              adjRooms    = adjacentRooms currRoom sub
 
----
- ## SECTION-02: Opening hatches
+
+SECTION-02: Opening hatches
 ---
 
 > --Helper functions
@@ -179,8 +179,8 @@ Obeys the following rules:
 >                  adjHatches  = adjacentHatchesCanOpen currRoom sub
 
 
----
- ## SECTION-03: Coordinating high-level functions for turns and game state
+
+SECTION-03: Coordinating high-level functions for turns and game state
 ---
 
 
@@ -207,12 +207,11 @@ concat $ map moveRooms $ moveRooms (GameState mini [(Move (Room 1) 0)])
 
 test: allMoves (startGame mini 1)
 
----
- ## SECTION-04: Game state analysis 
+SECTION-04: Game state analysis 
 ---
 
 
-Helper functions
+> -- Helper functions
 
 > gameStateActions                    :: GameState -> [Action]
 > gameStateActions (GameState sub acts) = acts
@@ -228,21 +227,21 @@ Helper functions
 > actionCost                    :: Action -> Int
 > actionCost (Move _ cost)      = cost
 > actionCost (OpenHatch _ cost) = cost
->
+
 > totalCost                      :: GameState -> Int
 > totalCost (GameState sub actions) = sum (map actionCost actions)
 
 > -- Ordering and equality functions to order & group by various aspects of the GameState
 > orderByCost         :: GameState -> GameState -> Ordering 
 > orderByCost gs1 gs2 = compare (totalCost gs1) (totalCost gs2)
->
+
 > orderByGameState :: GameState -> GameState -> Ordering
 > orderByGameState gs1 gs2 | currRoom1 < currRoom2  = LT -- Use Ord for rooms
 >                          | currRoom1 > currRoom2  = GT
 >                          | otherwise              = compare (rooms (gameStateSub gs1)) (rooms (gameStateSub gs2))
 >     where currRoom1 = gameStateCurrentRoom gs1
 >           currRoom2 = gameStateCurrentRoom gs2
->
+
 > equalByGameState :: GameState -> GameState -> Bool
 > equalByGameState gs1 gs2 = (orderByGameState gs1 gs2) == EQ 
 
@@ -252,8 +251,8 @@ Helper functions
 > prune :: [GameState] -> [GameState]
 > prune gs = map (head . sortBy orderByCost) (groupBy equalByGameState ( sortBy orderByGameState gs))
 
----
- ## SECTION-05: Sample data
+
+SECTION-05: Sample data
 ---
 
 > mini = Sub { rooms =
