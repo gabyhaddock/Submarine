@@ -68,7 +68,7 @@ costToEnter _                 = 1
 visitedRooms :: [Action] -> [Room]
 visitedRooms actions | null moves =  error "The action list must include at least the starting room"
                      | otherwise   = map (\(Move room _) -> room) moves --This lambda is not exhaustive, but we should have filtered out any non-Move actions
-            where moves = (dropWhile (not . isMove) actions)
+            where moves = (filter isMove actions)
 
 -- For this function, we can pass in the entire action list from the GameState, no need to filter to moves
 currentRoom :: [Action] -> Room
@@ -95,18 +95,90 @@ moveRooms (GameState sub actions)  =  [ (GameState sub ((Move newRoom  (costToEn
 -- SECTION-02: Opening hatches
 -- =============================
 
+--Helper function
+hatchRooms                     :: Hatch -> (Int, Int)
+hatchRooms (Hatch rooms state) = rooms
+
+-- Given a room, return a list of all connecting hatches (regardless of state)
+adjacentHatches                  :: Room -> Sub -> [Hatch]
+adjacentHatches (Room n _ ) sub  =   [ (Hatch (x, y) state) | (Hatch (x, y) state) <- (hatches sub), (x == n ||y == n)]
+
+canOpenHatch                  :: Hatch -> Bool
+canOpenHatch (Hatch _ Closed) = True
+canOpenHatch _                = False
+
+-- Returns adjacent hatches that are currently Closed.  Open and Blocked hatches cannot be opened.
+adjacentHatchesCanOpen          :: Room -> Sub -> [Hatch]
+adjacentHatchesCanOpen room sub = filter (canOpenHatch) (adjacentHatches room sub)
+
+-- For a single hatch, update its state to the HatchState in the first parameter.  So far, Open is the only parameter actually used.
+updateHatchTo                                 :: HatchState -> Hatch -> Hatch
+updateHatchTo newState (Hatch (x,y) oldState)  = (Hatch (x,y) newState)
+
+-- Pass in an updated hatch and look for it in the existing hatch list.  If found, replace it with the new state.
+-- If newHatch is not found, it is NOT added.  This should only be used when updating an existing hatch.
+-- Also note that the order of the room pair (x,y) matters.  TODO: allow flipped pairs?
+updateHatchesWith :: Hatch -> [Hatch] -> [Hatch]
+updateHatchesWith newHatch hatches  = map (\oldHatch -> if hatchRooms oldHatch == hatchRooms newHatch
+                                                 then newHatch
+                                                 else oldHatch)
+                                           hatches
+
+
+-- Pass in an updated room and look for it in the existing room list.  If found, replace it with the new room.
+-- If newRoom is not found, it is NOT added.
+updateRoomsWith                :: Room -> [Room] -> [Room]
+updateRoomsWith newRoom rooms  = map (\oldRoom -> if roomNum oldRoom == roomNum newRoom
+                                                  then newRoom
+                                                  else oldRoom)
+                                      rooms
+
+
+-- Given an opened hatch and the original list of rooms, check the final states of the two adjacent rooms
+-- If one is at HighFlood and the other is Clear or Fire, the rooms equalize to LowFlood.
+-- Note: Will error out if the Room list does not contain both numbers listed in the Hatch.
+flowRooms                   :: Hatch -> [Room] -> [Room]
+flowRooms openedHatch rooms =
+             if (oldFirstState == HighFlood && (oldSecondState == Clear || oldSecondState == Fire))
+                || (oldSecondState == HighFlood && (oldFirstState == Clear || oldFirstState == Fire))
+             then updateRoomsWith (Room firstRoomNum LowFlood) (updateRoomsWith (Room secondRoomNum LowFlood) rooms)
+             else rooms
+             where firstRoomNum = fst (hatchRooms openedHatch)
+                   secondRoomNum = snd (hatchRooms openedHatch)
+                   oldFirstRoom = head (filter (\x -> roomNum x == firstRoomNum) rooms)
+                   oldSecondRoom = head (filter (\x -> roomNum x == secondRoomNum) rooms)
+                   oldFirstState = roomState oldFirstRoom
+                   oldSecondState = roomState oldSecondRoom
+
+-- For a given GameState, show all possible GameStates that can follow from opening a single hatch
+-- Obeys the following rules:
+--  * Only Closed hatches can be opened, not Open or Blocked hatches
+--  * The two adjacent rooms can flow water between them
+--  * The rooms and hatches list of the Sub are modified as needed.
+openHatches :: GameState -> [GameState]
+openHatches (GameState sub actions) = [ (GameState 
+                                        sub{
+                                            rooms = flowRooms openedHatch (rooms sub),
+                                            hatches = updateHatchesWith openedHatch (hatches sub) -- Replace the closed hatch in the list with the opened hatch
+                                           } 
+                                        ( (OpenHatch openedHatch 1) : actions) )
+                                        | openedHatch <- map (updateHatchTo Open) adjHatches ]
+           where currRoom    = currentRoom actions
+                 adjHatches  = adjacentHatchesCanOpen currRoom sub
+
 
 -- ===================================================================
 -- SECTION-03: Coordinating high-level functions for turns and game state
 -- ===================================================================
 
 -- Take one turn
-plusDepth :: [GameState] -> [GameState]
-plusDepth gameState =  (concat . (map moveRooms)) gameState 
+takeTurn :: [GameState] -> [GameState]
+takeTurn gameState =  (concat . (map moveRooms)) gameState 
+                       ++ (concat . (map openHatches)) gameState 
 
 --Get all moves, regardless of depth.  This terminates when a row in the grid has no results (no additional moves from the previous row)
 allMoves :: [GameState] -> [GameState]
-allMoves gameState = concat $ takeWhile (not . null) (iterate plusDepth gameState)
+allMoves gameState = concat $ takeWhile (not . null) (iterate takeTurn gameState)
 
 --moves only:  map (\(GameState sub moves) -> moves) (allMoves miniList)
 
@@ -147,5 +219,18 @@ mini = Sub { rooms =
                  Hatch (3,4) Closed]
                 }
 
+
+miniFlood = Sub  { rooms =
+               [ Room 1 Clear,
+                 Room 2 HighFlood,
+                 Room 3 Fire,
+                 Room 4 Clear]
+            , hatches =
+               [ Hatch (1,2) Closed,
+                 Hatch (1,3) Closed,
+                 Hatch (2,3) Closed,
+                 Hatch (2,4) Closed,
+                 Hatch (3,4) Closed]
+                }
 
 miniList = startGame mini 1
