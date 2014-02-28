@@ -3,7 +3,8 @@
 * SECTION-02: Opening hatches  
 * SECTION-03: Coordinating high-level functions for turns and game state  
 * SECTION-04: Game state analysis  
-* SECTION-05: Sample data  
+* SECTION-05: Exporting to JSON
+* SECTION-06: Sample data  
 
 
 > import Data.List
@@ -228,12 +229,12 @@ SECTION-04: Game state analysis
 > actionCost (Move _ cost)      = cost
 > actionCost (OpenHatch _ cost) = cost
 
-> totalCost                      :: GameState -> Int
-> totalCost (GameState sub actions) = sum (map actionCost actions)
+> totalCost                      :: [Action] -> Int
+> totalCost actions = sum (map actionCost actions)
 
 > -- Ordering and equality functions to order & group by various aspects of the GameState
 > orderByCost         :: GameState -> GameState -> Ordering 
-> orderByCost gs1 gs2 = compare (totalCost gs1) (totalCost gs2)
+> orderByCost (GameState _ a1) (GameState _ a2) = compare (totalCost a1) (totalCost a2)
 
 > orderByGameState :: GameState -> GameState -> Ordering
 > orderByGameState gs1 gs2 | currRoom1 < currRoom2  = LT -- Use Ord for rooms
@@ -251,8 +252,44 @@ SECTION-04: Game state analysis
 > prune :: [GameState] -> [GameState]
 > prune gs = map (head . sortBy orderByCost) (groupBy equalByGameState ( sortBy orderByGameState gs))
 
+SECTION-05: Exporting to JSON
+--- 
 
-SECTION-05: Sample data
+> class Json a where
+>  json :: a -> String
+
+> instance Json a => Json [a] where
+>    json a = "[\n" ++
+>                 intercalate ",\n" (map json a) ++
+>                "\n]"
+
+> instance Json Room where
+>    json (Room number state)   = "{ \"number\": " ++ (show number) ++
+>                                 " , \"state\": \"" ++ (show state) ++ "\" }"
+
+> --Represent the numbers from the hatch as an string Hatch (1,2) _ -> "number" : "1-2"
+> instance Json Hatch where
+>    json (Hatch (x,y) state)  = "{ \"number\": \"" ++ (show x) ++ "-" ++ (show y) ++
+>                                "\" , \"state\": \"" ++ (show state) ++ "\" }"
+
+> instance Json Sub where
+>    json (Sub rooms hatches)  = "{ \"rooms\": " ++ json rooms ++ 
+>                                " , \n \"hatches\": " ++ json hatches ++
+>                                "}"
+
+> instance Json Action where
+>    json (Move room cost)        = "{ \"type\": \"move\", \"room\": " ++ json room ++ ", \"cost\": " ++ show cost ++ " }"
+>    json (OpenHatch hatch cost)  = "{ \"type\": \"openHatch\", \"hatch\": " ++ json hatch ++ ", \"cost\": " ++ show cost ++ " }"
+
+
+> instance Json GameState where
+>    json (GameState sub actions) = "{ \"sub\": " ++ json sub ++
+>                                   ", \n \"actions\": " ++ json actions ++ 
+>                                   ", \n \"finalRoom\": " ++ json (currentRoom actions) ++
+>                                   ", \n \"totalCost\": " ++ show (totalCost actions) ++
+>                                   "}"
+
+SECTION-06: Sample data
 ---
 
 > mini = Sub { rooms =
@@ -283,3 +320,32 @@ SECTION-05: Sample data
 >                 }
 
 > miniList = startGame mini 1
+
+> starterSub = Sub { rooms = 
+>                   [(Room 1 Clear),
+>                   (Room 2 Clear),
+>                   (Room 3 Clear),
+>                   (Room 4 Clear),
+>                   (Room 5 Clear),
+>                   (Room 6 Clear),
+>                   (Room 7 Clear),
+>                   (Room 8 Clear),
+>                   (Room 9 Clear),
+>                   (Room 10 Clear)] 
+>                   , hatches =
+>                  [ (Hatch (1, 2) Open),
+>                    (Hatch (1, 3) Open),
+>                    (Hatch (2, 3) Open),
+>                    (Hatch (2, 5) Open),
+>                    (Hatch (3, 4) Open),
+>                    (Hatch (4, 5) Open),
+>                    (Hatch (5, 6) Open),
+>                    (Hatch (5, 7) Open),
+>                    (Hatch (7, 8) Open),
+>                    (Hatch (7, 9) Open),
+>                    (Hatch (8, 9) Open),
+>                    (Hatch (8, 10) Open),
+>                    (Hatch (9, 10) Open)
+>                  ]
+>                  }
+>                  

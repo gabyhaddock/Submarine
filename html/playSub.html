@@ -1,0 +1,80 @@
+<html>
+<head>
+<script src="starterSub.js" > </script>
+
+
+</head>
+<body>
+
+<div style="display:none;">
+<img id="starter-board" src="starter-board.jpg" />
+<img id="fire-token" src="fire-token.png" />
+<img id="high-flood-token" src="high-flood-token.png" />
+<img id="low-flood-token" src="low-flood-token.png" />
+<img id="hatch-block-token" src="fire-token.png" />
+</div>
+<canvas id="canvas" width="1024" height="512" style="border:1px dotted;"></canvas>
+
+
+<script>
+
+    var allRoomCoords = [  {x: 250, y: 275} , //1
+                        {x: 365, y: 215},     //2
+                        {x: 350 , y: 350 },   //3
+                        {x: 510 , y: 390 },   //4
+                        {x: 555 , y: 245 },   //5
+                        {x: 585 , y: 160 },   //6
+                        {x: 620 , y: 390 },   //7
+                        {x: 710 , y: 260 },   //8
+                        {x: 735 , y: 370 },   //9
+                        {x: 855 , y: 320 }   //10
+                    ] ;
+
+    var canvas = document.getElementById("canvas");
+    var context = canvas.getContext("2d");
+    var board = document.getElementById("starter-board");
+
+    var fireToken = document.getElementById("fire-token");
+    var highFloodToken = document.getElementById("high-flood-token");
+    var lowFloodToken = document.getElementById("low-flood-token");
+    var hatchBlockToken = document.getElementById("hatch-block-token");
+
+window.onload = function(){
+
+
+
+    context.drawImage(board, 0, 0);
+
+    //Render a single sub
+
+
+    var sub = starterSub;
+    var rooms = sub.rooms;
+    var hatches = sub.hatches;
+
+    for (var i = 0; i < rooms.length ; i++) {
+        var roomState = rooms[i].state;
+        var roomCoords = allRoomCoords[i];
+
+
+        switch(roomState) 
+        {
+            case "Clear" :
+                break;
+            case "Fire" :
+                context.drawImage(fireToken, roomCoords.x, roomCoords.y);
+                break;
+            case "HighFlood" :
+                context.drawImage(highFloodToken, roomCoords.x, roomCoords.y);
+                break;
+            case "LowFlood" :
+                context.drawImage(lowFloodToken, roomCoords.x, roomCoords.y);
+                break;
+         }   
+    }
+    
+
+}
+</script>
+</body>
+</html>
