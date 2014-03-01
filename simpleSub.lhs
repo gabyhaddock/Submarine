@@ -202,11 +202,11 @@ concat $ map moveRooms $ moveRooms (GameState mini [(Move (Room 1) 0)])
 
 > startGame :: Sub -> Int -> [GameState]
 > startGame sub roomNum = if roomNum `elem` (map (\(Room n _) -> n) (rooms sub)) 
->                         then [GameState sub [(Move room 0)]]
+>                         then prune (allMoves [GameState sub [(Move room 0)]])
 >                         else error "Start room is not found in the description of the sub"
 >                where room = head (filter (\(Room n s) -> n == roomNum) (rooms sub))
 
-test: allMoves (startGame mini 1)
+test: startGame mini 1
 
 SECTION-04: Game state analysis 
 ---
@@ -278,8 +278,8 @@ SECTION-05: Exporting to JSON
 >                                "}"
 
 > instance Json Action where
->    json (Move room cost)        = "{ \"type\": \"move\", \"room\": " ++ json room ++ ", \"cost\": " ++ show cost ++ " }"
->    json (OpenHatch hatch cost)  = "{ \"type\": \"openHatch\", \"hatch\": " ++ json hatch ++ ", \"cost\": " ++ show cost ++ " }"
+>    json (Move room cost)        = "{ \"type\": \"Move\", \"room\": " ++ json room ++ ", \"cost\": " ++ show cost ++ " }"
+>    json (OpenHatch hatch cost)  = "{ \"type\": \"OpenHatch\", \"hatch\": " ++ json hatch ++ ", \"cost\": " ++ show cost ++ " }"
 
 
 > instance Json GameState where
@@ -288,6 +288,9 @@ SECTION-05: Exporting to JSON
 >                                   ", \n \"finalRoom\": " ++ json (currentRoom actions) ++
 >                                   ", \n \"totalCost\": " ++ show (totalCost actions) ++
 >                                   "}"
+
+Test: putStrLn (json (startGame mini 1))
+
 
 SECTION-06: Sample data
 ---
@@ -336,11 +339,13 @@ SECTION-06: Sample data
 >                  [ (Hatch (1, 2) Open),
 >                    (Hatch (1, 3) Open),
 >                    (Hatch (2, 3) Open),
+>                    (Hatch (2, 4) Closed),
 >                    (Hatch (2, 5) Open),
 >                    (Hatch (3, 4) Open),
 >                    (Hatch (4, 5) Open),
 >                    (Hatch (5, 6) Open),
 >                    (Hatch (5, 7) Open),
+>                    (Hatch (5, 8) Closed),
 >                    (Hatch (7, 8) Open),
 >                    (Hatch (7, 9) Open),
 >                    (Hatch (8, 9) Open),

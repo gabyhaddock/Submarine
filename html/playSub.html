@@ -13,12 +13,25 @@
 <img id="low-flood-token" src="low-flood-token.png" />
 <img id="hatch-block-token" src="fire-token.png" />
 </div>
-<canvas id="canvas" width="1024" height="512" style="border:1px dotted;"></canvas>
 
+<div id="starter-sub" style="display:none;">
+    <canvas id="canvas" width="1024" height="512" style="border:1px dotted;"></canvas>
+</div>
+
+<div id="game-state-template" style="display:none;">
+    <div class="game-state">
+        <canvas width="1024" height="512" style="border:1px dotted;"> </canvas>
+
+    </div>
+</div>
+
+<div id="results-1">
+</div>
 
 <script>
 
-    var allRoomCoords = [  {x: 250, y: 275} , //1
+    var allRoomCoords = [  
+                        {x: 250, y: 275} , //1
                         {x: 365, y: 215},     //2
                         {x: 350 , y: 350 },   //3
                         {x: 510 , y: 390 },   //4
@@ -30,6 +43,25 @@
                         {x: 855 , y: 320 }   //10
                     ] ;
 
+    var allHatchCoords = {
+        "1-2" : {x: 320, y: 280},
+        "1-3" : {x: 320, y: 355},
+        "2-3" : {x: 375, y: 320},
+        "2-4" : {x: 480, y: 340},
+        "2-5" : {x: 480, y: 270},
+        "3-4" : {x: 480, y: 410},
+        "4-5" : {x: 525, y: 320},
+        "5-6" : {x: 615, y: 245},
+        "5-7" : {x: 655, y: 320},
+        "5-8" : {x: 700, y: 270},
+        "7-8" : {x: 700, y: 345},
+        "7-9" : {x: 700, y: 405},
+        "8-9" : {x: 790, y: 330},
+        "8-10" : {x: 830, y: 300},
+        "9-10" : {x: 830, y: 370}
+    }
+
+
     var canvas = document.getElementById("canvas");
     var context = canvas.getContext("2d");
     var board = document.getElementById("starter-board");
@@ -39,22 +71,17 @@
     var lowFloodToken = document.getElementById("low-flood-token");
     var hatchBlockToken = document.getElementById("hatch-block-token");
 
-window.onload = function(){
-
-
-
+function renderSub(context, sub) {
+    //Draw the game board
     context.drawImage(board, 0, 0);
 
-    //Render a single sub
-
-
-    var sub = starterSub;
     var rooms = sub.rooms;
     var hatches = sub.hatches;
 
+    //Render rooms
     for (var i = 0; i < rooms.length ; i++) {
         var roomState = rooms[i].state;
-        var roomCoords = allRoomCoords[i];
+        var roomCoords = allRoomCoords[rooms[i].number - 1];  //uses list index to get the coords from allRoomCoords
 
 
         switch(roomState) 
@@ -72,9 +99,102 @@ window.onload = function(){
                 break;
          }   
     }
+
+    //Render hatches
+    context.font = "bold 40px sans-serif";
+    context.textAlign = "center";
     
+    for (var i = 0; i < hatches.length ; i++) {
+        var hatchState = hatches[i].state;
+        var hatchCoords = allHatchCoords[hatches[i].number];
+
+        switch (hatchState)
+        {
+            case "Open":
+                context.fillStyle = 'green';
+                context.fillText("O", hatchCoords.x, hatchCoords.y);
+                break;
+            case "Closed":
+/*              --Do nothing?
+                context.fillStyle = 'blue';
+                context.fillText("|", hatchCoords.x, hatchCoords.y);
+*/
+                break;
+            case "Blocked":
+                context.fillStyle = 'red';
+                context.fillText("X", hatchCoords.x, hatchCoords.y);
+                break;
+
+        }
+    }
+    
+}
+
+function renderGameState(gameState) {
+    var template = document.getElementById("game-state-template").getElementsByTagName("div")[0].cloneNode(true);
+
+    var canvas = template.getElementsByTagName("canvas")[0];
+    var context = canvas.getContext("2d");
+
+    renderSub(context, gameState.sub);
+
+    //From : http://www.rgraph.net/blog/2013/january/html5-canvas-dashed-lines.html
+    //Add a placeholder function for browsers that don't have setLineDash()
+    if (!context.setLineDash) {
+        context.setLineDash = function () {}
+    }
+
+    //Draw the path.  The actions come from Haskell in reverse order, so flip them now
+    var actions = gameState.actions.reverse();
+
+    context.beginPath();
+        //Start the line at the first coordinate
+        var firstCoord = actionToCoord(actions[0]);
+        context.moveTo(firstCoord.x, firstCoord.y);
+
+        //Draw lines to the rest of the coordinates
+        for (var i = 1; i < actions.length; i++) {
+            var coord = actionToCoord(actions[i]);
+            context.lineTo(coord.x, coord.y);
+        }
+
+        context.strokeStyle = "#000000";
+        context.lineWidth = 5;
+        context.setLineDash([5]);
+    context.stroke();
+
+    document.getElementById("results-1").appendChild(template);
+}
+
+function actionToCoord(action) {
+    if (action.type === "Move"){
+        var roomCoords = allRoomCoords[action.room.number - 1]; //use list index in allRoomCoords
+        //For rooms, the path should be adjusted so it ends up in the center of the icon
+        return {x : roomCoords.x + 25, y : roomCoords.y + 25 };
+    }
+    else if (action.type === "OpenHatch"){
+        var hatchCoords = allHatchCoords[action.hatch.number];
+        return {x : hatchCoords.x, y : hatchCoords.y };
+    }
+}
+function connectActions(action1, action2){
+
 
 }
+window.onload = function(){
+
+
+
+ 
+
+    //Render a single sub
+    renderSub(context, starterSub);
+   
+    //Render a game state (with path)
+    renderGameState(finalState);
+}
+
+
 </script>
 </body>
 </html>
