@@ -81,11 +81,17 @@ SECTION-01: Moving rooms
 >             where moves = (filter isMove actions)
 
 For this function, we can pass in the entire action list from the GameState, no need to filter to moves
+The order is important.  The initial room is the last element of the Actions list, and the final (or current) room is the head of the actions list.
 
-> currentRoom :: [Action] -> Room
+> currentRoom         :: [Action] -> Room
 > currentRoom actions = case visitedRooms actions of
 >                            []      -> error "The action list must include at least the starting room"
 >                            visited -> head visited
+
+> startRoom         :: [Action] -> Room
+> startRoom actions = case visitedRooms actions of
+>                            []       -> error "The action list must include at least the starting room"
+>                            visited  -> last visited
 
 For a given GameState, show all possible GameStates that can follow from a single move
 Obeys the following rules: 
@@ -200,11 +206,16 @@ moves only:  map (\(GameState sub moves) -> moves) (allMoves miniList)
 
 concat $ map moveRooms $ moveRooms (GameState mini [(Move (Room 1) 0)])
 
+> startState            :: Sub -> Int -> GameState
+> startState sub roomNum =  if roomNum `elem` (map (\(Room n _) -> n) (rooms sub)) 
+>                           then GameState sub [Move room 0]
+>                           else error "Start room is not found in the description of the sub"
+>       where room = head (filter (\(Room n s) -> n == roomNum) (rooms sub)) -- Convert the room int to the Room data type from the description
+>
+
 > startGame :: Sub -> Int -> [GameState]
-> startGame sub roomNum = if roomNum `elem` (map (\(Room n _) -> n) (rooms sub)) 
->                         then prune (allMoves [GameState sub [(Move room 0)]])
->                         else error "Start room is not found in the description of the sub"
->                where room = head (filter (\(Room n s) -> n == roomNum) (rooms sub))
+> startGame sub roomNum = prune (allMoves ([startState sub roomNum]))
+
 
 test: startGame mini 1
 
@@ -284,8 +295,10 @@ SECTION-05: Exporting to JSON
 
 > instance Json GameState where
 >    json (GameState sub actions) = "{ \"sub\": " ++ json sub ++
->                                   ", \n \"actions\": " ++ json actions ++ 
+>                                   ", \n \"actions\": " ++ json (tail (reverse actions)) ++  
+> -- We store the actions in reverse order, flip them to print. Also, remove the starting room (which is the head after reversal)
 >                                   ", \n \"finalRoom\": " ++ json (currentRoom actions) ++
+>                                   ", \n \"startRoom\": " ++ json (startRoom actions) ++
 >                                   ", \n \"totalCost\": " ++ show (totalCost actions) ++
 >                                   "}"
 

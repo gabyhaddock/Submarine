@@ -60,13 +60,15 @@ var finalState = { "sub": { "rooms": [
 ]}
 , 
  "actions": [
-{ "type": "Move", "room": { "number": 5 , "state": "Clear" }, "cost": 1 },
-{ "type": "OpenHatch", "hatch": { "number": "4-5" , "state": "Open" }, "cost": 1 },
-{ "type": "Move", "room": { "number": 4 , "state": "Clear" }, "cost": 1 },
-{ "type": "OpenHatch", "hatch": { "number": "2-4" , "state": "Open" }, "cost": 1 },
-{ "type": "Move", "room": { "number": 2 , "state": "Clear" }, "cost": 1 },
+
 { "type": "OpenHatch", "hatch": { "number": "1-2" , "state": "Open" }, "cost": 1 },
-{ "type": "Move", "room": { "number": 1 , "state": "Clear" }, "cost": 0 }
+{ "type": "Move", "room": { "number": 2 , "state": "Clear" }, "cost": 1 },
+{ "type": "OpenHatch", "hatch": { "number": "2-4" , "state": "Open" }, "cost": 1 },
+{ "type": "Move", "room": { "number": 4 , "state": "Clear" }, "cost": 1 },
+{ "type": "OpenHatch", "hatch": { "number": "4-5" , "state": "Open" }, "cost": 1 },
+{ "type": "Move", "room": { "number": 5 , "state": "Clear" }, "cost": 1 }
+
 ], 
  "finalRoom": { "number": 4 , "state": "Clear" }, 
+ "startRoom": { "number": 1 , "state": "Clear" }, 
  "totalCost": 4}
