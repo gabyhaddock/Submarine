@@ -2,12 +2,11 @@
 
 ## misc
 * Move Sub out of record syntax? it got smaller...
-* Make a Reflow action?
 * Show gnome icon?  Not sure if this is actually needed - when the path is on the map, it is pretty clear. If I want it, I should serialize the entire initial GameState instead of just the sub.
 
 * Create IO driver
-** Input to program from file (JSON would be great, but that's a lot of parsing... just some flat file maybe?)
-** Output to .js file.
+ * Input to program from file (JSON would be great, but that's a lot of parsing... just some flat file maybe?)
+ * Output to .js file.
 
 
 * Validate original sub, make sure that each hatch describes a room in the room list
@@ -16,6 +15,9 @@
 
 ## openHatches
 * allow flipped pairs in updateHatchesWith?
+* add a third Action type for ReflowRooms so that the user can clearly see the side effects?
+
+
 
 
 # Done:

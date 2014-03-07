@@ -14,7 +14,7 @@
 <img id="high-flood-token" src="high-flood-token.png" />
 <img id="low-flood-token" src="low-flood-token.png" />
 <img id="hatch-block-token" src="fire-token.png" />
-<img id="gnome" src="gnome-face.png" />
+<img id="gnome" src="red-star.png" />
 </div>
 
 
@@ -243,7 +243,7 @@ function renderGameState(gameState) {
 
     //Draw the gnome
      var roomCoords = allRoomCoords[gameState.finalRoom.number - 1];  //uses list index to get the coords from allRoomCoords
-     context.drawImage(gnome, roomCoords.x + 50, roomCoords.y);
+     context.drawImage(gnome, roomCoords.x, roomCoords.y);
 
 }
 

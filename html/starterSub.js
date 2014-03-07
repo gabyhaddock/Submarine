@@ -30,7 +30,7 @@ var starterSub = { "rooms": [
 
 
 var finalState = { "sub": { "rooms": [
-{ "number": 1 , "state": "LowFlood" },
+{ "number": 1 , "state": "Fire" },
 { "number": 2 , "state": "Fire" },
 { "number": 3 , "state": "HighFlood" },
 { "number": 4 , "state": "LowFlood" },
@@ -69,6 +69,6 @@ var finalState = { "sub": { "rooms": [
 { "type": "Move", "room": { "number": 5 , "state": "Clear" }, "cost": 1 }
 
 ], 
- "finalRoom": { "number": 4 , "state": "Clear" }, 
+ "finalRoom": { "number": 3 , "state": "Clear" }, 
  "startRoom": { "number": 1 , "state": "Clear" }, 
  "totalCost": 4}
