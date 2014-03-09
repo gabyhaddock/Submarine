@@ -1,6 +1,6 @@
 <html>
 <head>
-<script src="starterSub.js" > </script>
+<script src="sub.js" > </script>
 <script src="handlebars-v1.3.0.js"> </script>
 <script src="jquery-1.11.0.min.js"> </script>
 <link rel="stylesheet" type="text/css" href="playSub.css" />
@@ -35,9 +35,13 @@
                   {{#each actions}}
                 <tr>
                     {{#ifMove}}
-                        <td>Move to Room {{room.number}} </td> <td> {{cost}} </td>
+                        <td>Move to Room {{room.number}} </td> <td> {{cost}}  </td>
                     {{else}}
-                        <td>Open Hatch {{hatch.number}} </td>  <td> {{cost}} </td>
+                        {{#ifFlood}}
+                            <td>Flood rooms {{room1.number}} and {{room2.number}} </td> <td> {{cost}} </td>
+                        {{else}}
+                            <td>Open Hatch {{hatch.number}} </td>  <td> {{cost}} </td>
+                        {{/ifFlood}}
                     {{/ifMove}}
  <!--                <td>{{this.type}} </td> <td> {{this.cost}} </td> -->
                 </tr>
@@ -58,7 +62,7 @@
                 <li>Starter submarine</li>
             </ul>
     </div>
-    <canvas id="canvas" width="1024" height="512" style="border:1px dotted;"></canvas>
+    <canvas id="canvas" width="1024" height="512""></canvas>
 </div>
 
 
@@ -93,6 +97,7 @@
 </div>
 
 <script>
+
 
     var allRoomCoords = [  
                         {x: 250, y: 275} , //1
@@ -146,12 +151,22 @@ Handlebars.registerHelper('ifMove', function(options) {
     }
 });
 
-function renderSub(context, sub) {
+Handlebars.registerHelper('ifFlood', function(options) {
+    if(this.type == "Flood") {
+        return options.fn(this);
+    } else {
+        return options.inverse(this);
+    }
+});
+
+
+
+function renderSub(context, gameState) {
     //Draw the game board
     context.drawImage(board, 0, 0);
 
-    var rooms = sub.rooms;
-    var hatches = sub.hatches;
+    var rooms = gameState.rooms;
+    var hatches = gameState.hatches;
 
     //Render rooms
     for (var i = 0; i < rooms.length ; i++) {
@@ -200,50 +215,59 @@ function renderSub(context, sub) {
         }
     }
     
+    //Draw the gnome
+     var roomCoords = allRoomCoords[gameState.finalRoom.number - 1];  //uses list index to get the coords from allRoomCoords
+     context.drawImage(gnome, roomCoords.x, roomCoords.y);
+
+    //Render the path for the actions
+
+    //Add a placeholder function for browsers that don't have setLineDash()
+    //From : http://www.rgraph.net/blog/2013/january/html5-canvas-dashed-lines.html
+    if (!context.setLineDash) {
+        context.setLineDash = function () {}
+    }
+
+
+    var actions = gameState.actions;
+
+    if (actions.length > 0) {
+        context.beginPath();
+            //Start the line at the coordinate for the first room, which is not in the action list
+            var firstCoord = actionToCoord(gameState.startRoom.number);
+            context.moveTo(firstCoord.x, firstCoord.y);
+
+            //Draw lines to the rest of the coordinates
+            for (var i = 0; i < actions.length; i++) {
+                var coord = actionToCoord(actions[i]);
+                if (coord) {
+                    context.lineTo(coord.x, coord.y);
+                }
+            }
+
+            context.strokeStyle = "#D2EDFC";
+            context.lineWidth = 5;
+            context.setLineDash([5]);
+        context.stroke();
+    }
+
+
 }
 
-function renderGameState(gameState) {
+function renderResult(gameState) {
 
     //Bind the gameState object to the handlebars template (defined globally) to show labels and the list of moves.
     var boundHTML = compiledTemplate(gameState);
 
     //Insert into the document in the results list that corresponds to the final room
-    var template = $("#results-" + gameState.finalRoom.number).append(boundHTML);
+    var template = $(boundHTML).appendTo($("#results-" + gameState.finalRoom.number));
 
     //After binding with handlebars, render the sub and path on the canvas
     var canvas = template.find("canvas")[0];
     var context = canvas.getContext("2d");
 
-    renderSub(context, gameState.sub);
+    renderSub(context, gameState);
 
-    //From : http://www.rgraph.net/blog/2013/january/html5-canvas-dashed-lines.html
-    //Add a placeholder function for browsers that don't have setLineDash()
-    if (!context.setLineDash) {
-        context.setLineDash = function () {}
-    }
 
-    //Draw the path for the actions
-    var actions = gameState.actions;
-
-    context.beginPath();
-        //Start the line at the coordinate for the first room, which is not in the action list
-        var firstCoord = actionToCoord(gameState.startRoom.number);
-        context.moveTo(firstCoord.x, firstCoord.y);
-
-        //Draw lines to the rest of the coordinates
-        for (var i = 0; i < actions.length; i++) {
-            var coord = actionToCoord(actions[i]);
-            context.lineTo(coord.x, coord.y);
-        }
-
-        context.strokeStyle = "#D2EDFC";
-        context.lineWidth = 5;
-        context.setLineDash([5]);
-    context.stroke();
-
-    //Draw the gnome
-     var roomCoords = allRoomCoords[gameState.finalRoom.number - 1];  //uses list index to get the coords from allRoomCoords
-     context.drawImage(gnome, roomCoords.x, roomCoords.y);
 
 }
 
@@ -256,6 +280,9 @@ function actionToCoord(action) {
     else if (action.type === "OpenHatch"){
         var hatchCoords = allHatchCoords[action.hatch.number];
         return {x : hatchCoords.x, y : hatchCoords.y };
+    }
+    else if (action.type === "Flood"){
+        return null; //Detect this return type in the rendering
     }
     else if (action.type === undefined){ //Can pass in just a number with no type - in this case, interpret as a room number
         var roomCoords = allRoomCoords[action- 1]; //use list index in allRoomCoords
@@ -270,12 +297,14 @@ function actionToCoord(action) {
 window.onload = function(){
 
     //Render the starter submarine
-    var canvas = document.getElementById("canvas");
+    var canvas = $("#starter-sub canvas")[0];
     var context = canvas.getContext("2d"); 
     renderSub(context, starterSub);
    
-    //Render a game state (with path)
-    renderGameState(finalState);
+    //Render final game states (with path and description of actions
+    $.each(results, function(){
+        renderResult(this);
+    });
 }
 
 
