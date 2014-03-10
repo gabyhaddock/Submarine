@@ -7,6 +7,7 @@
 * SECTION-06: Sample data  
 
 
+> import Data.Char
 > import Data.List
 > import Data.List.Split
 
@@ -27,7 +28,7 @@
 > data Hatch =  Hatch (Int, Int) HatchState deriving (Eq, Show)
 > data HatchState = Open | Closed | Blocked  deriving (Show, Eq)
 
-> data Action = Move Room Int | OpenHatch Hatch Int | Flood Room Room Int deriving Show -- Int is Cost
+> data Action = Move Room Int | OpenHatch Hatch Int | Flood Room Room  deriving Show -- Int is Cost
 
 > data GameState = GameState {
 >                               rooms::[Room],
@@ -172,24 +173,6 @@ SECTION-02: Opening hatches
 >                    oldSecondState = roomState oldSecondRoom
 
 
-> {-
-> -- Given a hatch (assumed already opened) and the original list of rooms, check the final states of the two adjacent rooms
-> -- If one is at HighFlood and the other is Clear or Fire, the rooms equalize to LowFlood.
-> -- Note: Will error out if the Room list does not contain both numbers listed in the Hatch.
-> flowRooms                   :: Hatch -> [Room] -> [Room]
-> flowRooms openedHatch rooms =
->              if (oldFirstState == HighFlood && (oldSecondState == Clear || oldSecondState == Fire))
->                 || (oldSecondState == HighFlood && (oldFirstState == Clear || oldFirstState == Fire))
->              then (floodRoom oldFirstRoom  . floodRoom oldSecondRoom) rooms
->              else rooms
->              where firstRoomNum = fst (hatchRooms openedHatch)
->                    secondRoomNum = snd (hatchRooms openedHatch)
->                    oldFirstRoom = head (filter (\x -> roomNum x == firstRoomNum) rooms)
->                    oldSecondRoom = head (filter (\x -> roomNum x == secondRoomNum) rooms)
->                    oldFirstState = roomState oldFirstRoom
->                    oldSecondState = roomState oldSecondRoom
-> -}
-
 
 
 For a given GameState, openHatches shows all possible GameStates that can follow from opening a single hatch
@@ -214,7 +197,7 @@ Obeys the following rules:
 >                                         let baseActions = (OpenHatch openedHatch 1) : (actions gst),
 > --In the case that rooms were flooded, add an additional special Flood action to indicate which rooms were flooded
 >                                         let newActions = case floodRooms of Nothing ->  baseActions
->                                                                             Just (f, s) -> (Flood f s 0) : baseActions
+>                                                                             Just (f, s) -> (Flood f s) : baseActions
 >                       ]
 >            where currRoom    = currentRoom gst
 >                  adjHatches  = adjacentClosedHatches currRoom gst
@@ -234,14 +217,72 @@ SECTION-03: Coordinating high-level functions for turns and game state
 > --Get all moves, regardless of depth.  This terminates when a row in the grid has no results (no additional moves from the previous row)
 > allMoves :: [GameState] -> [GameState]
 > allMoves gameState = concat $ takeWhile (not . null) (iterate takeTurn gameState)
+> -- The performance of this is great on the 4-room subs, but falls way behind on the 10-room sub.
 
-testing:
-moves only:  map actions (allMoves mini)
+*Main> length $ (iterate takeTurn [starterSub])!!10
+8596
+(0.53 secs, 46052252 bytes)
+*Main> length $ (iterate takeTurn [starterSub])!!15
+357564
+(37.17 secs, 3245943772 bytes)
+*Main> length $ prune ((iterate takeTurn [starterSub])!!10)
+9
+(2.11 secs, 185105528 bytes)
+*Main> length $ prune ((iterate takeTurn [starterSub])!!15)
+5
+(137.45 secs, 11684597024 bytes)
 
+
+> --Take pruneSize turns and prune afterwards
+> takeOptimalTurns             :: Int -> [GameState] -> [GameState]
+> takeOptimalTurns pruneSize gameState = prune (concat (take pruneSize (iterate takeTurn gameState)))
+
+
+> -- Choose how frequently to prune the result set. (aka how many turns to take between pruning phases)
+> startGameTemp ::  Int -> GameState -> [GameState]
+> startGameTemp pruneSize gst = (iterate (takeOptimalTurns pruneSize) gameState)!!numIterations
+>           where numRooms = length (rooms (gst))
+> -- Worst case is a linear sub where you need to do numRooms hatch opens and numRooms moves.  
+> -- In the board game, the longest path is actually shorter than 10, but it's ok to add moves. Cap the number of 
+> -- steps at 2 * numRooms, which means we need to do (numSteps * 2)/5  (rounded up) iterations of takeOptimalTurns 
+>                 numIterations = (2 * numRooms) `div` pruneSize + 1
+>                 gameState = [gst]
+
+Major improvement!!
+
+
+*Main> length (startGameTemp 10 starterSub)
+10
+(25.53 secs, 2209836972 bytes)
+
+*Main> length (startGameTemp 6 starterSub)
+10
+(0.86 secs, 79642608 bytes)
+*Main> length (startGameTemp 5 starterSub)
+10
+(0.48 secs, 41402792 bytes)
+*Main> length (startGameTemp 4 starterSub)
+10
+(0.14 secs, 13483624 bytes)
+*Main> length (startGameTemp 3 starterSub)
+10
+(0.06 secs, 5201360 bytes)
+
+Pruning more frequently clearly improves the run time.
+
+Below a pruning frequency of 3, we start getting incorrect values. take 2 from the takeTurn iteration means we get the 0th move (start state) + 1 move (opening hatch).  Pruning after these two steps will never allow us to move out of a room.
+*Main> length (startGameTemp 2 starterSub)
+1
+(0.00 secs, 520088 bytes)
+*Main> length (startGameTemp 1 starterSub)
+1
+(0.00 secs, 517076 bytes)
+
+
+In general, you can only perform one "useless" hatch opening before moving.  If your first hatch open causes your room to move to LowFlood (either decreasing or increasing your room's flood level), then you are standing in a room at LowFlood and you can't participate in any more flows per the rules of the game.  So at the very most, you would perform two hatch opens & one room move that would all be relevant to the game state.  Thus it is safe to prune every 3 moves without a loss of any relevant actions.
 
 > startGame :: GameState -> [GameState]
-> startGame gst = prune (allMoves ([gst]))
-
+> startGame gst = startGameTemp 3 gst
 
 test: startGame mini
 
@@ -256,7 +297,7 @@ SECTION-04: Game state analysis
 > actionCost                    :: Action -> Int
 > actionCost (Move _ cost)      = cost
 > actionCost (OpenHatch _ cost) = cost
-> actionCost (Flood _ _ cost)   = cost
+> actionCost (Flood _ _ )       = 0
 
 > totalCost                      :: GameState -> Int
 > totalCost gst = sum (map actionCost (actions gst))
@@ -278,11 +319,9 @@ SECTION-04: Game state analysis
 
 > --Given a list of possible game states, group into "equal" game states (same final room, same state of all rooms) and choose the lowest cost game state from each equivalent group
 > -- Note that haskell groupBy only groups adjacent elements, so I need to sortBy orderByRooms first
-> -- Also remove the zero-cost state that involves doing nothing.
 > prune    :: [GameState] -> [GameState]
-> prune gst = filter (\gs -> totalCost gs /= 0) 
->             (map (head . sortBy orderByCost) 
->             (groupBy equalByRooms (sortBy orderByRooms   gst)))
+> prune gst = map (head . sortBy orderByCost) 
+>             (groupBy equalByRooms (sortBy orderByRooms   gst))
 
 
 SECTION-05: Exporting to JSON
@@ -310,7 +349,7 @@ SECTION-05: Exporting to JSON
 > instance Json Action where
 >    json (Move room cost)         = "{ \"type\": \"Move\", \"room\": " ++ json room ++ ", \"cost\": " ++ show cost ++ " }"
 >    json (OpenHatch hatch cost)   = "{ \"type\": \"OpenHatch\", \"hatch\": " ++ json hatch ++ ", \"cost\": " ++ show cost ++ " }"
->    json (Flood room1 room2 cost) = "{ \"type\": \"Flood\", \"room1\": " ++ json room1 ++ ", \"room2\": " ++ json room2 ++ ", \"cost\": " ++ show cost ++ " }"
+>    json (Flood room1 room2) = "{ \"type\": \"Flood\", \"room1\": " ++ json room1 ++ ", \"room2\": " ++ json room2 ++ " }"
 
 > instance Json GameState where
 >    json gst                     = "{ \"rooms\": " ++ json (rooms gst) ++
@@ -327,14 +366,82 @@ Test: putStrLn (json mini)
 IO actions:  print out to /html/sub.js
 For now, just take in a hardcoded initial GameState.
 
-> outputResults :: GameState -> IO ()
-> outputResults gst = do
+> runFileToFile          :: String -> IO ()
+> runFileToFile filePath = do inputState <- inputFromFile filePath
+>                             playToFile inputState
+
+
+> playToFile :: GameState -> IO ()
+> playToFile gst = do
 >          writeFile "html/sub.js" "var starterSub = "
 >          appendFile "html/sub.js" (json gst)
 >          appendFile "html/sub.js" "; \n\n var results = "
 >          appendFile "html/sub.js" (json (startGame gst))
 >          appendFile "html/sub.js" ";"
 >
+
+
+> inputFromFile          :: String -> IO GameState
+> inputFromFile filePath = do
+>                          f <- readFile filePath
+>                          return (parseInput f)
+
+
+
+> parseInput fileString  = GameState {
+>                                     rooms = newRooms,
+>                                     hatches = newHatches,
+>                                     actions = newActions
+>                                    }
+>            where fileLines = lines fileString
+>                  roomsString = fileLines!!0
+>                  newRooms = parseRoomsString roomsString
+>                  hatchesString = fileLines!!1
+>                  newHatches = parseHatchesString hatchesString
+>                  currentRoom  = read (fileLines!!2) :: Int
+>                  newActions = [Move (Room currentRoom Clear) 0]
+>             
+
+
+> roomNumbers = [1..10]
+
+> parseRoomsString :: String -> [Room]
+> parseRoomsString roomsString = zipWith createRoom roomNumbers (splitOn "," roomsString)
+
+> createRoom          :: Int -> String -> Room 
+> createRoom num state = case toLower (head state) of
+>                            'c'  -> Room num Clear
+>                            'f'  -> Room num Fire
+>                            'l'  -> Room num LowFlood
+>                            'h'  -> Room num HighFlood
+
+> hatchNumbers = [
+>   (1, 2) ,
+>   (1, 3) ,
+>   (2, 3) ,
+>   (2, 4) ,
+>   (2, 5) ,
+>   (3, 4) ,
+>   (4, 5) ,
+>   (5, 6) ,
+>   (5, 7) ,
+>   (5, 8) ,
+>   (7, 8) ,
+>   (7, 9) ,
+>   (8, 9) ,
+>   (8, 10),
+>   (9, 10)
+>   ]
+
+> parseHatchesString               :: String -> [Hatch]
+> parseHatchesString hatchesString = zipWith createHatch hatchNumbers (splitOn "," hatchesString)
+
+> createHatch              :: (Int, Int) -> String -> Hatch
+> createHatch num state    = case toLower (head state) of
+>                                 'o'  -> Hatch num Open
+>                                 'c'  -> Hatch num Closed
+>                                 'b'  -> Hatch num Blocked
+
 
 SECTION-06: Sample data
 ---
@@ -365,40 +472,38 @@ SECTION-06: Sample data
 >                  Hatch (2,3) Closed,
 >                  Hatch (2,4) Closed,
 >                  Hatch (3,4) Closed]
->             , actions = [Move (Room 1 Clear) 0]
+>             , actions = [Move (Room 2 Clear) 0]
 >                 }
 
-> {-
-> starterSub = GameState { rooms = 
->                   [(Room 1 Clear),
->                   (Room 2 Clear),
->                   (Room 3 Clear),
->                   (Room 4 Clear),
->                   (Room 5 Clear),
->                   (Room 6 Clear),
->                   (Room 7 Clear),
->                   (Room 8 Clear),
->                   (Room 9 Clear),
->                   (Room 10 Clear)] 
->                   , hatches =
->                  [ (Hatch (1, 2) Open),
->                    (Hatch (1, 3) Open),
->                    (Hatch (2, 3) Open),
->                    (Hatch (2, 4) Closed),
->                    (Hatch (2, 5) Open),
->                    (Hatch (3, 4) Open),
->                    (Hatch (4, 5) Open),
->                    (Hatch (5, 6) Open),
->                    (Hatch (5, 7) Open),
->                    (Hatch (5, 8) Closed),
->                    (Hatch (7, 8) Open),
->                    (Hatch (7, 9) Open),
->                    (Hatch (8, 9) Open),
->                    (Hatch (8, 10) Open),
->                    (Hatch (9, 10) Open)
->                  ]
->                  }
->                  
 
-> -}
+
+> starterSub = GameState {rooms = [Room 1 Clear,
+>                                    Room 2 Clear,
+>                                    Room 3 Clear,
+>                                    Room 4 Clear,
+>                                    Room 5 Clear,
+>                                    Room 6 Clear,
+>                                    Room 7 Clear,
+>                                    Room 8 Clear,
+>                                    Room 9 Clear,
+>                                    Room 10 Clear], 
+>                          hatches = [Hatch (1,2) Closed,
+>                                    Hatch (1,3) Closed,
+>                                    Hatch (2,3) Closed,
+>                                    Hatch (2,4) Closed,
+>                                    Hatch (2,5) Closed,
+>                                    Hatch (3,4) Closed,
+>                                    Hatch (4,5) Closed,
+>                                    Hatch (5,6) Closed,
+>                                    Hatch (5,7) Closed,
+>                                    Hatch (5,8) Closed,
+>                                    Hatch (7,8) Closed,
+>                                    Hatch (7,9) Closed,
+>                                    Hatch (8,9) Closed,
+>                                    Hatch (8,10) Closed,
+>                                    Hatch (9,10) Closed], 
+>                          actions = [Move (Room 1 Clear) 0]
+>                         }
+
+
 
