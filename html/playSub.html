@@ -38,7 +38,7 @@
                         <td>Move to Room {{room.number}} </td> <td> {{cost}}  </td>
                     {{else}}
                         {{#ifFlood}}
-                            <td>Flood rooms {{room1.number}} and {{room2.number}} </td> <td> {{cost}} </td>
+                            <td colspan="2">Flood rooms {{room1.number}} and {{room2.number}} </td> 
                         {{else}}
                             <td>Open Hatch {{hatch.number}} </td>  <td> {{cost}} </td>
                         {{/ifFlood}}
@@ -55,6 +55,18 @@
 </script>
 
 
+    <div id="nav-list"> Move to room
+            <a href="#results-1">1</a>
+            <a href="#results-2">2</a>
+            <a href="#results-3">3</a>
+            <a href="#results-4">4</a>
+            <a href="#results-5">5</a>
+            <a href="#results-6">6</a>
+            <a href="#results-7">7</a>
+            <a href="#results-8">8</a>
+            <a href="#results-9">9</a>
+            <a href="#results-10">10</a>
+    </div>
 
 <div id="starter-sub" >
     <div class="header">
@@ -67,6 +79,7 @@
 
 
 <div id="results-1">
+  
 </div>
 
 <div id="results-2">
@@ -159,7 +172,17 @@ Handlebars.registerHelper('ifFlood', function(options) {
     }
 });
 
-
+Handlebars.registerHelper('actionRow', function(options) {
+    if(this.type === "Move") {
+        return options.fn(this);
+    } else if(this.type === "OpenHatch") {
+        return options.fn(this);
+    } else if(this.type === "Flood") {
+        return options.fn(this);
+    } else {
+        console.log("Could not understand type " + this.type);
+    }
+});
 
 function renderSub(context, gameState) {
     //Draw the game board
