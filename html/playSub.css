@@ -6,15 +6,24 @@ body {
     padding: 15px;
 }
 
-#nav-list {
+#nav {
     position: fixed;
     top: 0px;
     left: 0px;
     width: 100%;
     margin: 0px 0px 20px 0px;
     padding: 5px 20px;
-    background-color: silver;
+    background-color: whitesmoke;
 
+}
+
+#nav-list {
+    display: inline-block;
+    margin: 0px;
+}
+#nav-list li {
+    display: inline-block;
+    margin-left: 15px;
 }
 
 #nav-list a {
@@ -45,7 +54,7 @@ body {
 }
 
 .header li {
-    float: left;
+    display: inline-block;
     width: 200px;
     padding: 5px 15px;
 }

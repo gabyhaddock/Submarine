@@ -55,17 +55,11 @@
 </script>
 
 
-    <div id="nav-list"> Move to room
-            <a href="#results-1">1</a>
-            <a href="#results-2">2</a>
-            <a href="#results-3">3</a>
-            <a href="#results-4">4</a>
-            <a href="#results-5">5</a>
-            <a href="#results-6">6</a>
-            <a href="#results-7">7</a>
-            <a href="#results-8">8</a>
-            <a href="#results-9">9</a>
-            <a href="#results-10">10</a>
+    <div id="nav"> 
+        Move to room  (# of choices) : 
+        <ul id="nav-list">
+         <!--  <li> <a href="#results-1">1</a>  (1) </li>-->
+        </ul>
     </div>
 
 <div id="starter-sub" >
@@ -328,6 +322,19 @@ window.onload = function(){
     $.each(results, function(){
         renderResult(this);
     });
+
+
+  //  var resultsSummary = [];
+    
+    for (var i = 1; i <= 10 ; i++){
+        var numResults = $("#results-" + i + " .game-state").length;
+        if (numResults > 0) {
+             //   resultsSummary.push({room = i, count = numResults});
+                var link = '<a href="#results-' + i + '">' + i + '</a> '
+                link = link + '(' + numResults + ') '
+                $("<li>").appendTo("#nav-list").append(link);
+        }
+    }
 }
 
 
