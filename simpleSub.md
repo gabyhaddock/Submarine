@@ -13,7 +13,6 @@ In addition, your movement may affect the state of the ship.  If you open a hatc
 This program will use a representation of the submarine's rooms and hatches and show you paths to each of the rooms of the submarine from your current room. If two paths to the same room have the exact same side effects on the ship, the program will only recommend the shortest path. Since the hatches re-close themselves at the end of your turn, the state of the hatches is ignored, and the state of the rooms is the only side effect that matters for this evaluation.  If you are given the opportunity to open a hatch to flood a room, the program will show you that option, even if it takes more time than a path that does not flood anything.  This means that the player still has the opportunity to evaluate their options and make an interesting choice about what kind of movement they will make on their turn.
 
 Here is a summary of the basic movement rules from Red November:
-
 * You cannot leave a room that is on Fire
 * You cannot enter a room that is on Fire, or flooded to High Flood
 * You can enter a room that is flooded to Low Flood, and the movement costs 1 minute
@@ -24,7 +23,6 @@ Here is a summary of the basic movement rules from Red November:
 * Opening a hatch costs 1 minute
 * After a hatch is opened, if one room is flooded to High Flood and the other is Clear or on Fire, both rooms end at Low Flood. This movement costs 0 minutes. (If the attached room is at High Flood or Low Flood, nothing happens).
 * You can open a hatch in a room without moving through it
-
 
 > import Data.Char
 > import Data.List
@@ -49,7 +47,7 @@ I set Ord and Eq instances on the Room type to facilitate analysis of the submar
 
 Testing:
 
-
+```
 *Main> (Room 1 Fire) < (Room 2 LowFlood)
 True
 (0.02 secs, 517308 bytes)
@@ -58,7 +56,7 @@ True
 (0.00 secs, 517308 bytes)
 *Main> (Room 1 LowFlood) == (Room 1 LowFlood)
 True
-
+```
 
 We can see that this implementation allows us to compare rooms for Ord and Eq.
 
@@ -97,9 +95,8 @@ This custom Show instance increases readability during debugging by adding newli
 
 Capturing the game state as actions are completed may initially seem like a perfect use case for a monad.  However, in this case, I actually intend to generate all possible GameStates from an initial value, then compare and evaluate the GameStates against each other to choose the best actions.  Given the final results that I hope to output, I chose to keep the GameState object as a standard data type.
 
---------------------------------
 Moving from one room to another
---------------------------------
+---
 
 > --Helper functions for the Room object
 
@@ -259,14 +256,10 @@ Applying moveRooms three times shows us that there are no GameStates that make e
 By iteratively applying moveRooms, we can perform a breadth-first traversal of the submarine, starting from the initial room and only making valid moves.
 
 
---------------------------------
-Opening hatches
---------------------------------
+SECTION-02: Opening hatches
+---
 
-
-The moveRooms function allows the player to move through Open hatches, but in the game, each turn starts with every hatch Closed.  So, in order to leave a room, the player must first open at least one of the hatches attached to that room.  
-
-Additionally, opening a hatch may have side effects on the adjoining rooms if one of them is flooded to High Flood.  Because of this, opening a hatch will not only add an OpenHatch action to the actions list of the game state, but it will also modify the game state's hatches list, and possibly the rooms list.
+The moveRooms function allows the player to move through Open hatches, but in the game, each turn starts with every hatch Closed.
 
 > --Helper function
 > hatchRooms                     :: Hatch -> (Int, Int)
@@ -295,7 +288,7 @@ Opening a hatch has side effects on the Hatches list, and may also affect the Ro
 >                                            hatches
 
 
-> -- Pass in a Room to flood and look for its number in the existing room list.  If found, replace its state with LowFlood.
+> -- Pass in a Room to flood and look for it in the existing room list.  If found, replace its state with LowFlood.
 > -- If the Room is not found, nothing happens to the room list.  This preserves the order of the room list.
 > floodRoom                    :: Room -> [Room] -> [Room]
 > floodRoom (Room num _) rooms  = map (\oldRoom -> if roomNum oldRoom == num
@@ -304,12 +297,10 @@ Opening a hatch has side effects on the Hatches list, and may also affect the Ro
 >                                       rooms
 
 
- Given a hatch (assumed already opened) and the original list of rooms, the roomsToFlood function will first check the initial states of the two adjacent rooms
- * If one is at HighFlood and the other is Clear or Fire, the rooms equalize to LowFlood.
- * The roomsToFlood function returns Nothing if we do not need to flow, and Maybe (Room, Room) if the rooms should be flooded
-
-
-> -- Note: The roomsToFlood function will error out if the Room list does not contain both numbers listed in the Hatch.
+> -- Given a hatch (assumed already opened) and the original list of rooms, check the initial states of the two adjacent rooms
+> -- If one is at HighFlood and the other is Clear or Fire, the rooms equalize to LowFlood.
+> -- Return Nothing if we do not need to flow, and Maybe (Room, Room) if the rooms should be flooded
+> -- Note: Will error out if the Room list does not contain both numbers listed in the Hatch.
 > roomsToFlood                   :: Hatch -> [Room] -> Maybe (Room, Room)
 > roomsToFlood openedHatch rooms =
 >              if (oldFirstState == HighFlood && (oldSecondState == Clear || oldSecondState == Fire))
@@ -333,143 +324,36 @@ Obeys the following rules:
 * The rooms and hatches list of the Sub are modified as needed.
 
 > openHatches       :: GameState -> [GameState]
-> openHatches gst    = [ gst {
+> openHatches gst    = [ GameState {
 >                                     rooms = newRooms,
 >                                     hatches = newHatches, -- Replace the closed hatch in the list with the opened hatch
 >                                     actions = newActions
 >                                    }  
 >                        | openedHatch <- adjHatches, 
->                         let floodRooms = roomsToFlood openedHatch (rooms gst),
+>                                let floodRooms = roomsToFlood openedHatch (rooms gst),
 > --If rooms were flooded, update the rooms list to show the side effects. roomsToFlood returns Maybe (Room, Room) of rooms to flood.
->                         let newRooms = case floodRooms of Nothing -> rooms gst
->                                                           Just (f, s) -> ( floodRoom f . floodRoom s ) (rooms gst),
->                         let newHatches = openHatch openedHatch (hatches gst),
+>                                let newRooms = case floodRooms of Nothing -> rooms gst
+>                                                                  Just (f, s) -> ( floodRoom f . floodRoom s ) (rooms gst),
+>                                let newHatches = openHatch openedHatch (hatches gst),
 > --In all cases, add a 1-minute OpenHatch action
->                         let baseActions = (OpenHatch openedHatch 1) : (actions gst),
+>                                let baseActions = (OpenHatch openedHatch 1) : (actions gst),
 > --In the case that rooms were flooded, add an additional special Flood action to indicate which rooms were flooded
->                         let newActions = case floodRooms of Nothing ->  baseActions
->                                                             Just (f, s) -> (Flood f s) : baseActions
+>                                let newActions = case floodRooms of Nothing ->  baseActions
+>                                                                    Just (f, s) -> (Flood f s) : baseActions
 >                       ]
 >            where currRoom    = currentRoom gst
 >                  adjHatches  = adjacentClosedHatches currRoom gst
 
-To test the openHatches result, we will use a sample submarine that has closed hatches and water that can flow from room to room.
-
-> miniFlood = GameState  { rooms =
->                [ Room 1 Clear,
->                  Room 2 HighFlood,
->                  Room 3 Fire,
->                  Room 4 LowFlood]
->             , hatches =
->                [ Hatch (1,2) Closed,
->                  Hatch (1,3) Closed,
->                  Hatch (2,3) Closed,
->                  Hatch (2,4) Closed,
->                  Hatch (3,4) Closed]
->             , actions = [StartRoom (Room 2 Clear) ]
->                 }
-
-*Main> openHatches miniFlood
-[GameState { rooms= [Room 1 LowFlood,Room 2 LowFlood,Room 3 Fire,Room 4 LowFlood] , 
-  hatches = [Hatch (1,2) Open,Hatch (1,3) Closed,Hatch (2,3) Closed,Hatch (2,4) Closed,Hatch (3,4) Closed] , 
-  actions = [Flood (Room 1 Clear) (Room 2 HighFlood),OpenHatch (Hatch (1,2) Closed) 1,StartRoom (Room 2 Clear)] } 
-,GameState { rooms= [Room 1 Clear,Room 2 LowFlood,Room 3 LowFlood,Room 4 LowFlood] , 
-  hatches = [Hatch (1,2) Closed,Hatch (1,3) Closed,Hatch (2,3) Open,Hatch (2,4) Closed,Hatch (3,4) Closed] , 
-  actions = [Flood (Room 2 HighFlood) (Room 3 Fire),OpenHatch (Hatch (2,3) Closed) 1,StartRoom (Room 2 Clear)] } 
-,GameState { rooms= [Room 1 Clear,Room 2 HighFlood,Room 3 Fire,Room 4 LowFlood] , 
-  hatches = [Hatch (1,2) Closed,Hatch (1,3) Closed,Hatch (2,3) Closed,Hatch (2,4) Open,Hatch (3,4) Closed] , 
-  actions = [OpenHatch (Hatch (2,4) Closed) 1,StartRoom (Room 2 Clear)] } 
-]
-
-Calling openHatches on the miniFlood sub shows each of the hatches that can be opened from room 2, including the side effects on the submarine. When we open a hatch to room 1 or 3, the HighFlood in room 2 flows into the adjacent room and both rooms end at LowFlood.  When the hatch to room 4 is opened, the flooding does not happen because, according to game rules, water cannot flow into a room that is already at LowFlood.
-
-Similar to the mechanism for moveRooms, the openHatches function can be called repeatedly on the Game State to incrementally move one action further.
-
-*Main> length (concat (map openHatches (openHatches miniFlood)))
-6
-*Main> length (concat (map openHatches (concat (map openHatches (openHatches miniFlood)))))
-6
-*Main> length (concat (map openHatches (concat (map openHatches (concat (map openHatches (openHatches miniFlood)))))))
-0
-
-Two applications of openHatches gives six results, as does three applications of the function.  When we attempt to make the fourth OpenHatch action, we find that there are no more results available.  This is because room 2 has three connected hatches, and after three moves, all of them are open.
-
--------------------------------------------
-Coordinating functions for playing the game
--------------------------------------------
 
 
+SECTION-03: Game state analysis 
+---
 
-By combining the results for moveRooms and openHatches, we can take all possible moves that include one of those valid actions.
-
-> -- Take one turn, including all possible Move actions and all possible OpenHatch actions for each GameState that is passed in.
-> takeTurn :: [GameState] -> [GameState]
-> takeTurn gameState =  (concat . (map moveRooms)) gameState 
->                        ++ (concat . (map openHatches)) gameState 
-
-
-> --Get all moves, regardless of depth.  This terminates when a row in the grid has no results (no additional moves from the previous row)
-> allMoves :: [GameState] -> [GameState]
-> allMoves gameState = concat $ takeWhile (not . null) (iterate takeTurn gameState)
-
-The allMoves function terminates when the takeTurn function returns no new GameStates.  Since we are not allowing cycles, there must be some longest sequence of actions that eventually has no more valid options.
-
-
-> starterSub = GameState {rooms = [Room 1 Clear,
->                                    Room 2 Clear,
->                                    Room 3 Clear,
->                                    Room 4 Clear,
->                                    Room 5 Clear,
->                                    Room 6 Clear,
->                                    Room 7 Clear,
->                                    Room 8 Clear,
->                                    Room 9 Clear,
->                                    Room 10 Clear], 
->                          hatches = [Hatch (1,2) Closed,
->                                    Hatch (1,3) Closed,
->                                    Hatch (2,3) Closed,
->                                    Hatch (2,4) Closed,
->                                    Hatch (2,5) Closed,
->                                    Hatch (3,4) Closed,
->                                    Hatch (4,5) Closed,
->                                    Hatch (5,6) Closed,
->                                    Hatch (5,7) Closed,
->                                    Hatch (5,8) Closed,
->                                    Hatch (7,8) Closed,
->                                    Hatch (7,9) Closed,
->                                    Hatch (8,9) Closed,
->                                    Hatch (8,10) Closed,
->                                    Hatch (9,10) Closed], 
->                          actions = [StartRoom (Room 1 Clear)]
->                         }
-
-
-
-
-The performance of allMoves is great on the 4-room subs like miniOpen and miniFlood, but falls way behind on the 10-room sub starterSub.  To explore this, i took the first 10 or 15 steps and observed how long it took GHCI to run the iterations.  I also used the length function to see how many GameStates were actually being produced at each step.
-
-
-*Main> length $ (iterate takeTurn [starterSub])!!10
-8596
-(0.53 secs, 46052252 bytes)
-*Main> length $ (iterate takeTurn [starterSub])!!15
-357564
-(37.17 secs, 3245943772 bytes)
-
-On a full-size sub, taking 10 steps resulted in 8,596 possible GameStates in .5 seconds.  Taking 5 more steps resulted in 357,000 more GameStates but took a whopping 37 seconds to complete.  And since the 15th iteration still returned results, a call to allMoves on a full-size sub would keep going beyond 15 steps.
-
-
-
---------------------------------
-Game state analysis 
---------------------------------
-
-We clearly don't want all 300,000 options for a 10-room sub.  Some of those options include objectively terrible decisions.  There may be some cases where you open a hatch, then walk through a different one, but that only makes sense if the "useless" hatch actually participated in a flood action. In all other cases, you should only open a hatch if you immediately walk through it.
-
-We can say that two GameStates are equivalent if they have an equal list of Rooms (including RoomStates) and the player is in the same currentRoom.  If we partition the results into groups where all the GameStates have equivalent rooms, we can choose the GameState that has the lowest cost and discard the rest.  This partition will distinguish between two gamestates that end in the same room, but where a Flood action has occurred in one of them, because the Rooms list will not be equal.  In this way, we can display both options to the player and allow them to choose whether it is worth taking a longer path to their target room, if it allows them to perform a flood along the way.  See Appendix 1 for a visual example of the choice that the player will make from the result set.
 
 > -- Helper functions
-> -- Find the total cost of a GameState (used for final output of results)
+
+
+> --Find the total cost of a GameState (used for final output of results)
 > actionCost                    :: Action -> Int
 > actionCost (Move _ cost)      = cost
 > actionCost (OpenHatch _ cost) = cost
@@ -493,91 +377,58 @@ We can say that two GameStates are equivalent if they have an equal list of Room
 > equalByRooms gs1 gs2 = (orderByRooms gs1 gs2) == EQ 
 
 
-The prune function Given a list of possible game states, group into "equivalent" game states (same final room, same state of all rooms) and then chooses the lowest cost game state from each equivalent group by sorting and keeping the head.
-
+> --Given a list of possible game states, group into "equal" game states (same final room, same state of all rooms) and then choose the lowest cost game state from each equivalent group
 > -- Note that haskell groupBy only groups adjacent elements, so I need to sortBy orderByRooms first
 > prune    :: [GameState] -> [GameState]
 > prune gst = map (head . sortBy orderByCost) 
 >             (groupBy equalByRooms (sortBy orderByRooms   gst))
 
 
-For the openMini sub, the allMoves function returns 5 possible states, but we can see that only 3 of them are optimal after pruning out the inefficient results.
 
-*Main> openMini
-GameState { rooms= [Room 1 Clear,Room 2 LowFlood,Room 3 Clear,Room 4 Fire] , 
-  hatches = [Hatch (1,2) Open,Hatch (1,3) Open,Hatch (1,4) Open,Hatch (2,3) Open] , 
-  actions = [StartRoom (Room 1 Clear)] } 
+SECTION-04: Coordinating high-level functions for turns and game state
+---
 
-*Main> length (allMoves [openMini])
-5
 
-[GameState { rooms= [Room 1 Clear,Room 2 LowFlood,Room 3 Clear,Room 4 Fire] , 
-  hatches = [Hatch (1,2) Open,Hatch (1,3) Open,Hatch (1,4) Open,Hatch (2,3) Open] , 
-  actions = [StartRoom (Room 1 Clear)] } 
-,GameState { rooms= [Room 1 Clear,Room 2 LowFlood,Room 3 Clear,Room 4 Fire] , 
-  hatches = [Hatch (1,2) Open,Hatch (1,3) Open,Hatch (1,4) Open,Hatch (2,3) Open] , 
-  actions = [Move (Room 2 LowFlood) 1,StartRoom (Room 1 Clear)] } 
-,GameState { rooms= [Room 1 Clear,Room 2 LowFlood,Room 3 Clear,Room 4 Fire] , 
-  hatches = [Hatch (1,2) Open,Hatch (1,3) Open,Hatch (1,4) Open,Hatch (2,3) Open] , 
-  actions = [Move (Room 3 Clear) 0,StartRoom (Room 1 Clear)] } 
-,GameState { rooms= [Room 1 Clear,Room 2 LowFlood,Room 3 Clear,Room 4 Fire] , 
-  hatches = [Hatch (1,2) Open,Hatch (1,3) Open,Hatch (1,4) Open,Hatch (2,3) Open] , 
-  actions = [Move (Room 3 Clear) 0,Move (Room 2 LowFlood) 1,StartRoom (Room 1 Clear)] } 
-,GameState { rooms= [Room 1 Clear,Room 2 LowFlood,Room 3 Clear,Room 4 Fire] , 
-  hatches = [Hatch (1,2) Open,Hatch (1,3) Open,Hatch (1,4) Open,Hatch (2,3) Open] , 
-  actions = [Move (Room 2 LowFlood) 1,Move (Room 3 Clear) 0,StartRoom (Room 1 Clear)] } 
-]
+> -- Take one turn, including all possible Move actions and all possible OpenHatch actions for each GameState that is passed in.
+> takeTurn :: [GameState] -> [GameState]
+> takeTurn gameState =  (concat . (map moveRooms)) gameState 
+>                        ++ (concat . (map openHatches)) gameState 
 
-Without pruning, we have five results, but the third and fourth game states are equivalent because they both end in Room 3, and the second and fifth results both end in Room 2.  However, in each pair, one of the paths went through an irrelevant room, so they should be removed from the result set.
+> --Get all moves, regardless of depth.  This terminates when a row in the grid has no results (no additional moves from the previous row)
+> allMoves :: [GameState] -> [GameState]
+> allMoves gameState = concat $ takeWhile (not . null) (iterate takeTurn gameState)
 
-*Main> length (prune (allMoves ([openMini])))
-3
+The allMoves function terminates when the takeTurn function returns no new GameStates.  Since we are not allowing cycles, there must be some longest sequence of actions that eventually has no more valid options.
 
-*Main> prune (allMoves [openMini])
-[GameState { rooms= [Room 1 Clear,Room 2 LowFlood,Room 3 Clear,Room 4 Fire] , 
-  hatches = [Hatch (1,2) Open,Hatch (1,3) Open,Hatch (1,4) Open,Hatch (2,3) Open] , 
-  actions = [StartRoom (Room 1 Clear)] } 
-,GameState { rooms= [Room 1 Clear,Room 2 LowFlood,Room 3 Clear,Room 4 Fire] , 
-  hatches = [Hatch (1,2) Open,Hatch (1,3) Open,Hatch (1,4) Open,Hatch (2,3) Open] , 
-  actions = [Move (Room 2 LowFlood) 1,StartRoom (Room 1 Clear)] } 
-,GameState { rooms= [Room 1 Clear,Room 2 LowFlood,Room 3 Clear,Room 4 Fire] , 
-  hatches = [Hatch (1,2) Open,Hatch (1,3) Open,Hatch (1,4) Open,Hatch (2,3) Open] , 
-  actions = [Move (Room 3 Clear) 0,StartRoom (Room 1 Clear)] } 
-]
+The performance of allMoves is great on the 4-room subs, but falls way behind on the 10-room sub.  To explore this, i took the first 10 or 15 steps and observed how long it took GHCI to run the iterations.  I also used the length function to see how many GameStates were actually being produced at each step.
 
-After pruning, there are only three results.  One result ends in each of the enterable rooms.
-
-For the miniFlood sub, which still only has four rooms, there are more relevant results because our initial hatch opening causes a flood.  We also are considering OpenHatch actions here, and as discussed, it is easy to perform a "useless" OpenHatch if it is not moved through, and does not cause a flood.
-
-*Main> length (allMoves [miniFlood])
-182
-*Main> length (prune (allMoves [miniFlood]))
-9
-
-In this case, we get a massive improvement in the result set from 182 to 9 results while still preserving all the relevant player choices.
-
-The prune function initially makes the performance of our 10-room sub worse, as we would expect, since it must group and order all the results in the set.
-
+```
 *Main> length $ (iterate takeTurn [starterSub])!!10
 8596
 (0.53 secs, 46052252 bytes)
 *Main> length $ (iterate takeTurn [starterSub])!!15
 357564
 (37.17 secs, 3245943772 bytes)
+```
 
+On a full-size sub, taking 10 steps resulted in 8,596 possible GameStates in .5 seconds.  Taking 5 more steps resulted in 357,000 more GameStates but took a whopping 37 seconds to complete.  And since the 15th iteration still returned results, a call to allMoves on a full-size sub would keep going beyond 15 steps.
+
+Adding in a prune function at the end made the performance even worse, as we would expect, since it must group and order all the results in the set.
+
+```
 *Main> length $ prune ((iterate takeTurn [starterSub])!!10)
 9
 (2.11 secs, 185105528 bytes)
 *Main> length $ prune ((iterate takeTurn [starterSub])!!15)
 5
 (137.45 secs, 11684597024 bytes)
-
+```
 
 Note that of the 357,000 15-step GameStates, there were only 5 unique configurations remaining after the prune function call.  By keeping track of all the possible states and pruning at the end, I was holding on to a lot of junk data.
 
 I then explored the possibility of pruning at regular intervals during the generation of the result sets.  Since pruning itself has some overhead, I wasn't sure how this tradeoff would affect the overall run time, so I experimented with different intervals for pruning.
 
-Since we are pruning early, there is a risk that we would never get a completely empty iteration of takeTurn like we relied on in allMoves. Why? Suppose there are two GameStates that the prune function is comparing.  State 1 has the player staying in a room for cost 0.  State 2 has the player opening three hatches but never moving out of the room for cost 3.  The pruning function will observe that State 1 and State 2 are equivalent and keep State 1 since it has a lower cost, removing State 2 from the result set.  However, if we iteratively call takeTurn on the pruned result set, we will again generate State 2 as a valid game state.
+Since we are pruning early, there is a risk that we would never get a completely empty iteration of takeTurn like we relied on in allMoves.  Suppose there are two GameStates that the prune function is comparing.  State 1 has the player staying in a room for cost 0.  State 2 has the player opening three hatches but never moving out of the room for cost 3.  The pruning function will observe that State 1 and State 2 are equivalent and keep State 1 since it has a lower cost, removing State 2 from the result set.  However, if we iteratively call takeTurn on the pruned result set, we will again generate State 2 as a valid game state.
 
 To safely capture all moves, we can set an upper bound on the number of takeTurns that should be taken during the player's movement.  The worst case is a linear sub where you need to do (numRooms -1) HatchOpen actions and (numRooms - 1) Moves.  (The actual board game has a much shorter maximum, but I am trying to keep the code general at this point).   So, we can set the upper bound as numRooms * 2.  There is no problem with taking too many turns; allTurns may just return empty results at that point.
 
@@ -595,6 +446,7 @@ To safely capture all moves, we can set an upper bound on the number of takeTurn
 
 Pruning the result set early shows a major improvement in the performance!!
 
+```
 *Main> length (startGameTemp 10 starterSub)
 10
 (25.53 secs, 2209836972 bytes)
@@ -610,18 +462,21 @@ Pruning the result set early shows a major improvement in the performance!!
 *Main> length (startGameTemp 3 starterSub)
 10
 (0.06 secs, 5201360 bytes)
+```
 
 Pruning more frequently clearly improves the run time.
 
 Below a pruning frequency of 3, we start getting incorrect values. On the sub with no rooms flooded, we expect 10 possible states (1 for each final room).  However, pruning after 2 or 1 steps means we are removing valid values.
 
 
+```
 *Main> length (startGameTemp 2 starterSub)
 1
 (0.00 secs, 520088 bytes)
 *Main> length (startGameTemp 1 starterSub)
 1
 (0.00 secs, 517076 bytes)
+```
 
 These runs produce incorrect results is because take 2 from the takeTurn iteration means we get the 0th move (start state) and the 1st move (opening a hatch).  Pruning after these two steps will never allow us to move out of a room, since we always need to open a hatch before a move.
 
@@ -632,22 +487,63 @@ In general, you can only perform one "useless" hatch opening before moving.  If 
 > startGame :: GameState -> [GameState]
 > startGame gst = startGameTemp 3 gst
 
-*Main> length (startGame starterSub)
-10
-(0.06 secs, 5721652 bytes)
+test: startGame mini
 
-*Main> startGame starterSub
-...
-(0.08 secs, 8818820 bytes)
-
-We can now evaluate the 10-room sub in a much shorter time than the allMoves followed by a single prune at the end.
+SECTION-05: Reading from a file and exporting to JSON
+--- 
 
 
------------------------------------------
-Reading from a file and exporting to JSON
------------------------------------------
+> class Json a where
+>  json :: a -> String
 
-To simplify testing, I created a very basic IO input that configures the initial GameState from a flat file.  This is the first part of the program that will only specifically work for the description of the specific board in Red November.  The ten room states are listed in order on one line, then the 15 hatch states, then the number of the start room.
+> instance Json a => Json [a] where
+>    json a = "[\n" ++
+>                 intercalate ",\n" (map json a) ++
+>                "\n]"
+
+> instance Json Room where
+>    json (Room number state)   = "{ \"number\": " ++ (show number) ++
+>                                 " , \"state\": \"" ++ (show state) ++ "\" }"
+
+> --Represent the numbers from the hatch as an string Hatch (1,2) _ -> "number" : "1-2"
+> instance Json Hatch where
+>    json (Hatch (x,y) state)  = "{ \"number\": \"" ++ (show x) ++ "-" ++ (show y) ++
+>                                "\" , \"state\": \"" ++ (show state) ++ "\" }"
+
+
+> instance Json Action where
+>    json (Move room cost)         = "{ \"type\": \"Move\", \"room\": " ++ json room ++ ", \"cost\": " ++ show cost ++ " }"
+>    json (OpenHatch hatch cost)   = "{ \"type\": \"OpenHatch\", \"hatch\": " ++ json hatch ++ ", \"cost\": " ++ show cost ++ " }"
+>    json (Flood room1 room2) = "{ \"type\": \"Flood\", \"room1\": " ++ json room1 ++ ", \"room2\": " ++ json room2 ++ " }"
+>    json (StartRoom room)         = "{ \"type\": \"StartRoom\", \"room\": " ++ json room ++ " }"
+
+> instance Json GameState where
+>    json gst                     = "{ \"rooms\": " ++ json (rooms gst) ++
+>                                   ", \n \"hatches\": " ++ json (hatches gst) ++  
+>                                   ", \n \"actions\": " ++ json (tail (reverse (actions gst))) ++  
+> -- We store the actions in reverse order, flip them to print. Also, remove the starting room (which is the head after reversal)
+>                                   ", \n \"finalRoom\": " ++ json (currentRoom gst) ++
+>                                   ", \n \"startRoom\": " ++ json (startRoom gst) ++
+>                                   ", \n \"totalCost\": " ++ show (totalCost gst) ++
+>                                   "}"
+
+Test: putStrLn (json mini)
+
+IO actions:  print out to /html/sub.js
+
+> runFileToFile          :: String -> IO ()
+> runFileToFile filePath = do inputState <- inputFromFile filePath
+>                             playToFile inputState
+
+
+> playToFile :: GameState -> IO ()
+> playToFile gst = do
+>          writeFile "html/sub.js" "var starterSub = "
+>          appendFile "html/sub.js" (json gst)
+>          appendFile "html/sub.js" "; \n\n var results = "
+>          appendFile "html/sub.js" (json (startGame gst))
+>          appendFile "html/sub.js" ";"
+>
 
 
 > inputFromFile          :: String -> IO GameState
@@ -715,103 +611,68 @@ To simplify testing, I created a very basic IO input that configures the initial
 >                                 'b'  -> Hatch num Blocked
 >                                 otherwise -> error ("Could not understand hatch state " ++ state)
 
-The output for the result set is more interesting.  I convert the GameState for each result to JSON, a portable and javascript-friendly format.  This could be sent over HTTP if the program were running on a web server, but in this case, I am just outputting it directly to a second flat file.
 
-I use a Json type class to define the JSON string for each of the classes used in GameState.
+SECTION-06: Sample data
+---
 
-> class Json a where
->  json :: a -> String
-
-> instance Json a => Json [a] where
->    json a = "[\n" ++
->                 intercalate ",\n" (map json a) ++
->                "\n]"
-
-> instance Json Room where
->    json (Room number state)   = "{ \"number\": " ++ (show number) ++
->                                 " , \"state\": \"" ++ (show state) ++ "\" }"
-
-> --Represent the numbers from the hatch as an string Hatch (1,2) _ -> "number" : "1-2"
-> instance Json Hatch where
->    json (Hatch (x,y) state)  = "{ \"number\": \"" ++ (show x) ++ "-" ++ (show y) ++
->                                "\" , \"state\": \"" ++ (show state) ++ "\" }"
+> mini = GameState { rooms =
+>                [ Room 1 Clear,
+>                  Room 2 Clear,
+>                  Room 3 Clear,
+>                  Room 4 Clear]
+>             , hatches =
+>                [ Hatch (1,2) Closed,
+>                  Hatch (1,3) Closed,
+>                  Hatch (2,3) Closed,
+>                  Hatch (2,4) Closed,
+>                  Hatch (3,4) Closed]
+>              , actions = [StartRoom (Room 1 Clear) ]
+>                 }
 
 
-> instance Json Action where
->    json (Move room cost)         = "{ \"type\": \"Move\", \"room\": " ++ json room ++ ", \"cost\": " ++ show cost ++ " }"
->    json (OpenHatch hatch cost)   = "{ \"type\": \"OpenHatch\", \"hatch\": " ++ json hatch ++ ", \"cost\": " ++ show cost ++ " }"
->    json (Flood room1 room2) = "{ \"type\": \"Flood\", \"room1\": " ++ json room1 ++ ", \"room2\": " ++ json room2 ++ " }"
->    json (StartRoom room)         = "{ \"type\": \"StartRoom\", \"room\": " ++ json room ++ " }"
-
-> instance Json GameState where
->    json gst                     = "{ \"rooms\": " ++ json (rooms gst) ++
->                                   ", \n \"hatches\": " ++ json (hatches gst) ++  
->                                   ", \n \"actions\": " ++ json (tail (reverse (actions gst))) ++  
-> -- We store the actions in reverse order, flip them to print. Also, remove the starting room (which is the head after reversal)
->                                   ", \n \"finalRoom\": " ++ json (currentRoom gst) ++
->                                   ", \n \"startRoom\": " ++ json (startRoom gst) ++
->                                   ", \n \"totalCost\": " ++ show (totalCost gst) ++
->                                   "}"
-
-
-To test this, we can print one of our sample gamestates in JSON format:
-
-*Main> putStrLn (json miniFlood)
-{ "rooms": [
-{ "number": 1 , "state": "Clear" },
-{ "number": 2 , "state": "HighFlood" },
-{ "number": 3 , "state": "Fire" },
-{ "number": 4 , "state": "LowFlood" }
-], 
- "hatches": [
-{ "number": "1-2" , "state": "Closed" },
-{ "number": "1-3" , "state": "Closed" },
-{ "number": "2-3" , "state": "Closed" },
-{ "number": "2-4" , "state": "Closed" },
-{ "number": "3-4" , "state": "Closed" }
-], 
- "actions": [
-
-], 
- "finalRoom": { "number": 2 , "state": "Clear" }, 
- "startRoom": { "number": 2 , "state": "Clear" }, 
- "totalCost": 0}
-
-Note that we remove the starting room from the action list.  We kept it in the action list in the GameState to make currentRoom calculations easier, but we separate it out into a separate attribute in JSON.
-
-The results viewer always requires the same hard-coded output .js file with the JSON result, but we can feed different input file paths to the program.
-
-> runFileToFile          :: String -> IO ()
-> runFileToFile filePath = do inputState <- inputFromFile filePath
->                             playToFile inputState
-
-Our output file includes a description of the initial GameState and all the possible GameStates that are generated from startGame.
-
-> playToFile :: GameState -> IO ()
-> playToFile gst = do
->          writeFile "html/sub.js" "var starterSub = "
->          appendFile "html/sub.js" (json gst)
->          appendFile "html/sub.js" "; \n\n var results = "
->          appendFile "html/sub.js" (json (startGame gst))
->          appendFile "html/sub.js" ";"
->
-
-The results viewer is written in HTML5 canvas, javascript, and some basic CSS.  The code is given in Appendix II.
+> miniFlood = GameState  { rooms =
+>                [ Room 1 Clear,
+>                  Room 2 HighFlood,
+>                  Room 3 Fire,
+>                  Room 4 Clear]
+>             , hatches =
+>                [ Hatch (1,2) Closed,
+>                  Hatch (1,3) Closed,
+>                  Hatch (2,3) Closed,
+>                  Hatch (2,4) Closed,
+>                  Hatch (3,4) Closed]
+>             , actions = [StartRoom (Room 2 Clear) ]
+>                 }
 
 
 
---------------------------
-Conclusions
---------------------------
-
-This program generates all the possible move actions in the Red November board game.  The allowable actions depend on the state of the hatches and the rooms of the submarine, and they have a certain cost to the player. In addition, some actions cause side effects on the submarine when water flows from one room to the other.  The program represents the state of the submarine as well as the actions that the player has taken.
-
-The original strategy of this program was to generate all possible sequences of actions, and then evaluate which of those are optimal at the end of the calculation.  However, the performance of this strategy was unacceptable on a full-sized submarine.  Instead, I chose to prune out the inefficient states every 3 turns, and the performance massively improved.
-
-To make the results easily visible, I wrote a HTML and Javascript based web application to render the data onto a webpage. The program outputs the result as JSON, which is a natural input for javascript, using a Json typeclass and instances for all the relevant data types.
-
-Future directions for this program would be to take JSON as an input as well, and have the Haskell program read and write over HTTP on a web server.   In addition, it currently only handles the move action of a single player's turn -- there are many other moving parts in the board game left to model and analyze.
-
+> starterSub = GameState {rooms = [Room 1 Clear,
+>                                    Room 2 Clear,
+>                                    Room 3 Clear,
+>                                    Room 4 Clear,
+>                                    Room 5 Clear,
+>                                    Room 6 Clear,
+>                                    Room 7 Clear,
+>                                    Room 8 Clear,
+>                                    Room 9 Clear,
+>                                    Room 10 Clear], 
+>                          hatches = [Hatch (1,2) Closed,
+>                                    Hatch (1,3) Closed,
+>                                    Hatch (2,3) Closed,
+>                                    Hatch (2,4) Closed,
+>                                    Hatch (2,5) Closed,
+>                                    Hatch (3,4) Closed,
+>                                    Hatch (4,5) Closed,
+>                                    Hatch (5,6) Closed,
+>                                    Hatch (5,7) Closed,
+>                                    Hatch (5,8) Closed,
+>                                    Hatch (7,8) Closed,
+>                                    Hatch (7,9) Closed,
+>                                    Hatch (8,9) Closed,
+>                                    Hatch (8,10) Closed,
+>                                    Hatch (9,10) Closed], 
+>                          actions = [StartRoom (Room 1 Clear)]
+>                         }
 
 
 
