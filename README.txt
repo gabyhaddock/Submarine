@@ -1,1 +1,1 @@
-This is a Haskell program that acts as a pathfinder for the board game Red November.  See the final result with report & comments in simpleSub.lhs
+This is a Haskell program that acts as a pathfinder for the board game Red November and was written for a class in Haskell with Mark Jones at Portland State University.  See the final result with report & comments in simpleSub.lhs and/or report.pdf
